@@ -118,41 +118,43 @@ const CreateChallenge = () => {
         <Text strong style={{ fontSize: '15px', display: 'block', marginBottom: '12px' }}>
           <span style={{ color: 'var(--primary-orange)' }}>①</span> Find Opponent
         </Text>
-        <Input
-          prefix={<Search size={16} color="#999" />}
-          placeholder="Search by username..."
-          value={opponent}
-          onChange={handleOpponentInput}
-          style={{ borderRadius: '10px', height: '44px' }}
-        />
-        {/* Suggestions Dropdown */}
-        <AnimatePresence>
-          {suggestions.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              style={{
-                position: 'absolute', left: '16px', right: '16px', zIndex: 100,
-                background: 'white', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.1)', overflow: 'hidden', marginTop: '4px'
-              }}
-            >
-              {suggestions.map(name => (
-                <div
-                  key={name}
-                  onClick={() => selectOpponent(name)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', cursor: 'pointer', transition: 'background 0.2s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                >
-                  <Avatar size={32} src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`} />
-                  <Text strong>{name}</Text>
-                  <Text type="secondary" style={{ fontSize: '12px', marginLeft: 'auto' }}>@{name.toLowerCase()}</Text>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div style={{ position: 'relative' }}>
+          <Input
+            prefix={<Search size={16} color="#999" />}
+            placeholder="Search by username..."
+            value={opponent}
+            onChange={handleOpponentInput}
+            style={{ borderRadius: '10px', height: '44px' }}
+          />
+          {/* Suggestions Dropdown */}
+          <AnimatePresence>
+            {suggestions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                style={{
+                  position: 'absolute', left: 0, right: 0, zIndex: 100,
+                  background: 'white', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', overflow: 'hidden', marginTop: '4px'
+                }}
+              >
+                {suggestions.map(name => (
+                  <div
+                    key={name}
+                    onClick={() => selectOpponent(name)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', cursor: 'pointer', transition: 'background 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                  >
+                    <Avatar size={32} src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`} />
+                    <Text strong>{name}</Text>
+                    <Text type="secondary" style={{ fontSize: '12px', marginLeft: 'auto' }}>@{name.toLowerCase()}</Text>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Selected Opponent Badge */}
         <AnimatePresence>
