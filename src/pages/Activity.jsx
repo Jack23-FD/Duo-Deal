@@ -127,11 +127,20 @@ const Activity = () => {
     () => challengeStore.getNormalTasks()
   );
 
-  const activeDuels = useSyncExternalStore(
+  const challenges = useSyncExternalStore(
     subscribeToChallengeUpdates,
-    () => challengeStore.getActiveDuelsForDate(selectedDate),
-    () => challengeStore.getActiveDuelsForDate(selectedDate)
+    () => challengeStore.getChallenges(),
+    () => challengeStore.getChallenges()
   );
+
+  // Filter active duels for the selected date inside the component body to prevent infinite re-renders
+  const activeDuels = challenges.filter(ch => {
+    if (ch.status !== 'ACTIVE') return false;
+    const start = dayjs(ch.startDate);
+    const end = dayjs(ch.endDate);
+    return (selectedDate.isAfter(start, 'day') || selectedDate.isSame(start, 'day')) &&
+           (selectedDate.isBefore(end, 'day') || selectedDate.isSame(end, 'day'));
+  });
 
   const soloTasks = normalTasksSnapshot[dateKey] || [];
 
