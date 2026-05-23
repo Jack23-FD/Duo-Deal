@@ -79,58 +79,12 @@ const Challenges = () => {
   return (
     <div className="deals-page-container" style={{ background: '#fafafa', minHeight: '100vh', paddingBottom: '30px' }}>
       
-      {/* ── Top Tabs Navigation Bar ── */}
-      <div style={{
-        display: 'flex',
-        background: '#fff',
-        borderBottom: '1px solid #e2e8f0',
-        marginBottom: '20px'
-      }}>
-        <div 
-          onClick={() => navigate('/activity')}
-          style={{
-            flex: 1, padding: '14px 0', textAlign: 'center', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 600, color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-          }}
-        >
-          <ClipboardList size={16} /> My Activity
-        </div>
-        <div 
-          style={{
-            flex: 1, padding: '14px 0', textAlign: 'center',
-            fontSize: '13px', fontWeight: 700, color: 'var(--primary-orange)',
-            borderBottom: '3px solid var(--primary-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-          }}
-        >
-          <Award size={16} /> Duo Challenge
-        </div>
-        <div 
-          onClick={() => navigate('/create')}
-          style={{
-            flex: 1, padding: '14px 0', textAlign: 'center', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 600, color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-          }}
-        >
-          <PlusCircle size={16} /> Create Challenge
-        </div>
-      </div>
 
       <div className="page-content" style={{ padding: '0 15px' }}>
         
         {/* If an active selected duel is being viewed, render the Doo Challenge Detail Grid */}
         {selectedDuel ? (
           <div>
-            {/* Header / Back Link to List */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <Button 
-                type="text" 
-                icon={<ArrowLeft size={18} />} 
-                onClick={() => setSelectedDuelId(null)}
-                style={{ color: '#475569', fontWeight: 600 }}
-              >
-                Back to Deals
-              </Button>
-            </div>
 
             {/* Doo Challenge Detail Card */}
             <motion.div
