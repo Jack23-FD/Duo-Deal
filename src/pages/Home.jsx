@@ -36,26 +36,6 @@ const HomeTaskRow = ({ title, time, completed }) => (
       }}>{title}</p>
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{time}</p>
     </div>
-
-    <div style={{ flexShrink: 0 }}>
-      <div style={{
-        padding: '6px 12px',
-        borderRadius: 12,
-        fontSize: 12,
-        fontWeight: 800,
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-        background: completed ? '#52c41a' : '#ff4d4f',
-        color: '#fff',
-        border: `1.5px solid ${completed ? '#52c41a' : '#ff4d4f'}`,
-        textAlign: 'center',
-        minWidth: '100px',
-        boxShadow: completed ? '0 2px 8px rgba(82,196,26,0.15)' : '0 2px 8px rgba(255,77,79,0.15)',
-        transition: 'all 0.2s ease',
-      }}>
-        {completed ? 'Complete' : 'Incomplete'}
-      </div>
-    </div>
   </motion.div>
 );
 
@@ -281,12 +261,6 @@ const Home = () => {
             <Title level={3} style={{ margin: 0, letterSpacing: '-0.5px' }}>Your Hub</Title>
           </div>
         </Space>
-        <Space size={16}>
-          <div className="icon-button"><Search size={22} color="#595959" /></div>
-          <Badge dot color="var(--primary-orange)">
-            <div className="icon-button"><Bell size={22} color="#595959" /></div>
-          </Badge>
-        </Space>
       </motion.div>
 
       {/* Stats Board */}
@@ -400,19 +374,44 @@ const Home = () => {
           <h5 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>⚔️</span> Duo Deal
           </h5>
-          {duoToday.length === 0 ? (
+          {activeDuels.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '16px', background: 'white', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.03)' }}>
               <Text type="secondary" style={{ fontSize: '13px' }}>No active duel habits.</Text>
             </div>
           ) : (
-            duoToday.map(task => (
-              <HomeTaskRow 
-                key={task.id}
-                title={task.title}
-                time={task.time}
-                completed={task.completed}
-              />
-            ))
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {activeDuels.map(duel => (
+                <div key={duel.id} style={{
+                  background: '#fff',
+                  borderRadius: 20,
+                  padding: '16px 20px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+                  border: '1px solid rgba(0,0,0,0.05)',
+                }}>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-dark)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Swords size={16} color="var(--primary-orange)" />
+                    <span>Duel vs {duel.opponent}</span>
+                  </div>
+                  <div>
+                    {duel.tasks.map((task, idx) => {
+                      const taskName = task.name || task;
+                      const taskTime = task.time || '';
+                      const isCompleted = !!(duel.progress[todayStr] &&
+                                             duel.progress[todayStr]['Felix'] &&
+                                             duel.progress[todayStr]['Felix'][taskName]);
+                      return (
+                        <HomeTaskRow
+                          key={`${duel.id}_${idx}`}
+                          title={taskName}
+                          time={taskTime || 'Anytime'}
+                          completed={isCompleted}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </motion.section>
