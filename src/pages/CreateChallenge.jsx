@@ -118,7 +118,7 @@ const CreateChallenge = () => {
         <Text strong style={{ fontSize: '15px', display: 'block', marginBottom: '12px' }}>
           <span style={{ color: 'var(--primary-orange)' }}>①</span> Find Opponent
         </Text>
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', zIndex: 10 }}>
           <Input
             prefix={<Search size={16} color="#999" />}
             placeholder="Search by username..."
@@ -134,7 +134,7 @@ const CreateChallenge = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 style={{
-                  position: 'absolute', left: 0, right: 0, zIndex: 100,
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
                   background: 'white', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', overflow: 'hidden', marginTop: '4px'
                 }}
               >
