@@ -284,13 +284,19 @@ const Home = () => {
           <div style={{ fontSize: '13px', opacity: 0.9, fontWeight: 500 }}>CURR. STREAK</div>
           <div style={{ fontSize: '24px', fontWeight: 800 }}>12 Days</div>
         </div>
-        <div className="modern-card" style={{ background: '#fff', padding: '20px', color: 'var(--text-dark)', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+        <div className="modern-card" style={{ 
+          background: 'linear-gradient(135deg, #007bff 0%, #00c6ff 100%)', 
+          padding: '20px', 
+          color: 'white', 
+          position: 'relative', 
+          overflow: 'hidden'
+        }}>
           <div style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.2 }}>
-            <Target size={80} color="#ff8c00" />
+            <Target size={80} color="white" />
           </div>
-          <TrendingUp size={20} color="var(--primary-orange)" style={{ marginBottom: '8px' }} />
-          <div style={{ fontSize: '13px', color: 'var(--text-gray)', fontWeight: 500 }}>DAILY GOAL</div>
-          <h3 style={{ margin: '4px 0 8px', fontSize: 32, fontWeight: 900, background: 'linear-gradient(135deg, #ff8c00, #ffb347)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{dailyGoalPercent}%</h3>
+          <TrendingUp size={20} color="white" style={{ marginBottom: '8px' }} />
+          <div style={{ fontSize: '13px', opacity: 0.9, fontWeight: 500 }}>DAILY GOAL</div>
+          <div style={{ fontSize: '24px', fontWeight: 800 }}>{dailyGoalPercent}%</div>
         </div>
       </motion.div>
 
@@ -358,14 +364,28 @@ const Home = () => {
               <Text type="secondary" style={{ fontSize: '13px' }}>No personal habits planned.</Text>
             </div>
           ) : (
-            soloToday.map(task => (
-              <HomeTaskRow 
-                key={task.id}
-                title={task.title}
-                time={task.time}
-                completed={task.completed}
-              />
-            ))
+            <div style={{
+              background: '#fff',
+              borderRadius: 20,
+              padding: '16px 20px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+              border: '1px solid rgba(0,0,0,0.05)',
+            }}>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-dark)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>📋</span>
+                <span>Solo Habits</span>
+              </div>
+              <div>
+                {soloToday.map(task => (
+                  <HomeTaskRow 
+                    key={task.id}
+                    title={task.title}
+                    time={task.time}
+                    completed={task.completed}
+                  />
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
