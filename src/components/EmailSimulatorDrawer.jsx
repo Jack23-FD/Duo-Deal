@@ -182,7 +182,7 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
                       ⚔️ Habit Duel Challenge from {ch.challenger}!
                     </Title>
                     <Text type="secondary" style={{ fontSize: '12px', display: 'block', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      You have been challenged to a habit battle for {getDaysCount(ch.startDate, ch.endDate)} days! Daily tasks: {ch.tasks.join(', ')}
+                      You have been challenged to a habit battle for {getDaysCount(ch.startDate, ch.endDate)} days! Daily tasks: {ch.tasks.map(t => t.name || t).join(', ')}
                     </Text>
                     <div style={{ textAlign: 'right', marginTop: '8px' }}>
                       <Text style={{ fontSize: '10px', color: 'var(--text-gray)' }}>{dayjs(ch.createdAt).format('hh:mm A')}</Text>
@@ -274,7 +274,7 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
                       <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--gradient-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 800 }}>
                         {idx + 1}
                       </div>
-                      <Text strong style={{ fontSize: '13px', color: '#434343' }}>{task}</Text>
+                      <Text strong style={{ fontSize: '13px', color: '#434343' }}>{task.name || task}{task.time ? ` (${task.time})` : ''}</Text>
                     </div>
                   ))}
                 </div>
