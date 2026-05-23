@@ -18,8 +18,8 @@ const HomeTaskRow = ({ title, time, completed }) => (
       display: 'flex',
       alignItems: 'center',
       gap: 14,
-      background: completed ? '#e5ffe5' : '#ffe5e5',
-      border: `1.5px solid ${completed ? '#52c41a' : '#ff4d4f'}`,
+      background: completed ? '#e5ffe5' : '#ffffff',
+      border: completed ? '1.5px solid #52c41a' : '1px solid rgba(0,0,0,0.06)',
       borderRadius: 16,
       padding: '14px 16px',
       marginBottom: 10,
@@ -30,7 +30,7 @@ const HomeTaskRow = ({ title, time, completed }) => (
     <div style={{ flex: 1, minWidth: 0 }}>
       <p style={{
         margin: 0, fontSize: 15, fontWeight: 700,
-        color: completed ? '#1e7e34' : '#bd2130',
+        color: completed ? '#1e7e34' : 'var(--text-dark)',
         textDecoration: completed ? 'line-through' : 'none',
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
       }}>{title}</p>
