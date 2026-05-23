@@ -32,8 +32,14 @@ const MainLayout = () => {
   }, []);
 
   return (
-    <div className="layout-wrapper" style={{ position: 'relative' }}>
-      <header className="instagram-header">
+    <div className="layout-wrapper" style={{ 
+      position: 'relative',
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      <header className="instagram-header" style={{ flexShrink: 0 }}>
         <div className="logo gradient-text" style={{ fontSize: '22px' }}>Duo Deals</div>
         <div className="header-actions" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <Search size={22} color="var(--text-dark)" style={{ cursor: 'pointer' }} />
@@ -59,7 +65,13 @@ const MainLayout = () => {
         </div>
       </header>
       
-      <main className="page-container">
+      <main className="page-container" style={{ 
+        flex: 1, 
+        overflowY: 'auto',
+        position: 'relative',
+        background: '#fafafa',
+        paddingBottom: '80px'
+      }}>
         <Outlet />
       </main>
 
