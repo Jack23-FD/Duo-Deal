@@ -223,9 +223,8 @@ const Activity = () => {
         transition={{ duration: 0.4 }}
         style={{ marginBottom: 24 }}
       >
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-gray)', fontWeight: 500 }}>DAILY PLANNER</p>
         <h2 style={{ margin: '2px 0 0', fontSize: 26, fontWeight: 800, letterSpacing: '-0.5px' }}>
-          Task <span style={{ background: 'var(--gradient-orange)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Tracker</span>
+          <span style={{ background: 'var(--gradient-orange)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Activities</span>
         </h2>
       </motion.div>
 
