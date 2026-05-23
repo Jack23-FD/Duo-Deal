@@ -96,7 +96,7 @@ const CreateChallenge = () => {
       animate="visible"
       variants={containerVariants}
       className="page-container"
-      style={{ background: '#fafafa' }}
+      style={{ background: '#fafafa', minHeight: '100vh', paddingBottom: '100px' }}
     >
       {/* Header */}
       <motion.div variants={itemVariants} style={{ marginBottom: '28px' }}>
