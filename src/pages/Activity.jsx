@@ -63,58 +63,6 @@ const StatusBadge = ({ completed }) => (
   </div>
 );
 
-/* ─────────────────────────────────────────────
-   Single Task Row (for Solo Deal)
-   ───────────────────────────────────────────── */
-const TaskRow = ({ task, onToggle, onDelete }) => (
-  <motion.div
-    layout
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, x: -40 }}
-    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 14,
-      background: '#fff',
-      border: `1px solid rgba(0,0,0,0.06)`,
-      borderRadius: 16,
-      padding: '14px 16px',
-      marginBottom: 10,
-      boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-      cursor: 'pointer',
-    }}
-    onClick={onToggle}
-    whileTap={{ scale: 0.98 }}
-    whileHover={{ scale: 1.01 }}
-  >
-    {/* Text */}
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <p style={{
-        margin: 0, fontSize: 15, fontWeight: 600,
-        color: 'var(--text-dark)',
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-      }}>{task.title}</p>
-      <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{task.time}</p>
-    </div>
-
-    {/* Status Badge */}
-    <div style={{ flexShrink: 0 }}>
-      <StatusBadge completed={task.completed} />
-    </div>
-
-    {/* Delete */}
-    <div
-      onClick={e => { e.stopPropagation(); onDelete(); }}
-      style={{ padding: 4, opacity: 0.4, transition: 'opacity 0.2s', marginLeft: 8 }}
-      onMouseEnter={e => e.currentTarget.style.opacity = 1}
-      onMouseLeave={e => e.currentTarget.style.opacity = 0.4}
-    >
-      <Trash2 size={16} color="#ff4d4f" />
-    </div>
-  </motion.div>
-);
 
 /* ─────────────────────────────────────────────
    Duo Task Row (for Duo Deal tasks - Felix only)
@@ -300,7 +248,6 @@ const Activity = () => {
             onChange={(d) => { if (d) { setSelectedDate(d); } }}
             format="DD MMM YYYY"
             allowClear={false}
-            suffixIcon={<Calendar size={14} color="var(--primary-orange)" />}
             style={{
               border: 'none', boxShadow: 'none', background: 'transparent',
               padding: '2px 0', fontSize: 12
@@ -450,12 +397,54 @@ const Activity = () => {
             </motion.div>
           ) : (
             soloTasks.map(task => (
-              <TaskRow
+              <motion.div
                 key={task.id}
-                task={task}
-                onToggle={() => toggleSoloTask(task.id)}
-                onDelete={() => deleteSoloTask(task.id)}
-              />
+                layout
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -40 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  background: '#fff',
+                  border: `1px solid rgba(0,0,0,0.06)`,
+                  borderRadius: 16,
+                  padding: '14px 16px',
+                  marginBottom: 10,
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => toggleSoloTask(task.id)}
+                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.01 }}
+              >
+                {/* Text */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{
+                    margin: 0, fontSize: 15, fontWeight: 600,
+                    color: 'var(--text-dark)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                  }}>{task.title}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{task.time}</p>
+                </div>
+
+                {/* Status Badge */}
+                <div style={{ flexShrink: 0 }}>
+                  <StatusBadge completed={task.completed} />
+                </div>
+
+                {/* Delete */}
+                <div
+                  onClick={e => { e.stopPropagation(); deleteSoloTask(task.id); }}
+                  style={{ padding: 4, opacity: 0.4, transition: 'opacity 0.2s', marginLeft: 8 }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                  onMouseLeave={e => e.currentTarget.style.opacity = 0.4}
+                >
+                  <Trash2 size={16} color="#ff4d4f" />
+                </div>
+              </motion.div>
             ))
           )}
         </AnimatePresence>
