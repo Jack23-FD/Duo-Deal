@@ -1,6 +1,6 @@
 import { useState, useSyncExternalStore } from 'react';
 import { Typography, Card, Avatar, Space, Row, Col, Tag, Button, Checkbox } from 'antd';
-import { Swords, ClipboardList, Award, PlusCircle, ArrowLeft } from 'lucide-react';
+import { Swords, ClipboardList, Award, PlusCircle, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { challengeStore } from '../utils/challengeStore';
@@ -11,6 +11,7 @@ const { Title, Text } = Typography;
 const Challenges = () => {
   const navigate = useNavigate();
   const [selectedDuelId, setSelectedDuelId] = useState(null);
+  const [activeTooltip, setActiveTooltip] = useState(null);
 
   const subscribeToChallenges = (callback) => {
     window.addEventListener('challenge_store_update', callback);
@@ -77,7 +78,7 @@ const Challenges = () => {
   }
 
   return (
-    <div className="deals-page-container" style={{ background: '#fafafa', minHeight: '100vh', paddingBottom: '30px' }}>
+    <div className="deals-page-container" style={{ background: 'linear-gradient(135deg, #f0f7ff 0%, #fffbf0 100%)', minHeight: '100vh', paddingBottom: '30px' }}>
       
 
       <div className="page-content" style={{ padding: '0 15px' }}>
@@ -101,10 +102,14 @@ const Challenges = () => {
             >
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-gray)', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Daily habit battle</p>
-                <h2 style={{ margin: '4px 0', fontWeight: 800, fontSize: '24px', color: '#1e293b' }}>Doo Challenge</h2>
-                <Tag color="orange" style={{ borderRadius: '6px', fontWeight: 600, padding: '2px 8px' }}>
-                  {selectedDuel.challenger} VS {selectedDuel.opponent}
-                </Tag>
+                <h2 style={{ margin: '4px 0', fontWeight: 800, fontSize: '24px', color: '#1e293b' }}>Duo Progress</h2>
+                
+                {/* VS Badge — Blue & Orange Split */}
+                <div style={{ display: 'inline-flex', borderRadius: '8px', overflow: 'hidden', fontWeight: 700, fontSize: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                  <span style={{ background: '#e6f7ff', color: '#007bff', padding: '4px 12px' }}>{selectedDuel.challenger}</span>
+                  <span style={{ background: '#f1f5f9', color: '#64748b', padding: '4px 8px' }}>VS</span>
+                  <span style={{ background: '#fff7e6', color: '#ff8c00', padding: '4px 12px' }}>{selectedDuel.opponent}</span>
+                </div>
               </div>
 
               {/* Grid Column Header */}
@@ -118,8 +123,8 @@ const Challenges = () => {
                 color: '#64748b'
               }}>
                 <div style={{ width: '80px', flexShrink: 0 }}>DATE</div>
-                <div style={{ flex: 1, textAlign: 'center' }}>{selectedDuel.challenger.toUpperCase()}</div>
-                <div style={{ flex: 1, textAlign: 'center' }}>{selectedDuel.opponent.toUpperCase()}</div>
+                <div style={{ flex: 1, textAlign: 'center', color: '#007bff', fontWeight: 800 }}>{selectedDuel.challenger.toUpperCase()}</div>
+                <div style={{ flex: 1, textAlign: 'center', color: '#ff8c00', fontWeight: 800 }}>{selectedDuel.opponent.toUpperCase()}</div>
               </div>
 
               {/* Daily Checklist Side-By-Side Row Grid */}
@@ -146,16 +151,66 @@ const Challenges = () => {
                           const completed = !!(selectedDuel.progress[dStr] &&
                                                selectedDuel.progress[dStr][selectedDuel.challenger] &&
                                                selectedDuel.progress[dStr][selectedDuel.challenger][taskName]);
+                          const tooltipKey = `${dStr}_${idx}_ch`;
+                          const handleTriggerTooltip = () => {
+                            setActiveTooltip({ key: tooltipKey, name: taskName });
+                            if (window.tooltipTimer) clearTimeout(window.tooltipTimer);
+                            window.tooltipTimer = setTimeout(() => {
+                              setActiveTooltip(null);
+                            }, 2500);
+                          };
+
                           return (
-                            <Checkbox 
-                              key={`ch_${idx}`} 
-                              checked={completed} 
-                              disabled 
-                              style={{ 
-                                scale: 1.15,
-                                cursor: 'default'
-                              }}
-                            />
+                            <div 
+                              key={`ch_${idx}`}
+                              style={{ position: 'relative', display: 'inline-block' }}
+                              onMouseEnter={handleTriggerTooltip}
+                              onClick={handleTriggerTooltip}
+                            >
+                              {completed ? (
+                                <CheckCircle2 size={18} color="#52c41a" fill="#e6f4ea" style={{ cursor: 'pointer' }} />
+                              ) : (
+                                <XCircle size={18} color="#f5222d" fill="#fff1f0" style={{ cursor: 'pointer' }} />
+                              )}
+
+                              <AnimatePresence>
+                                {activeTooltip && activeTooltip.key === tooltipKey && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: -30, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    style={{
+                                      position: 'absolute',
+                                      left: '50%',
+                                      transform: 'translateX(-50%)',
+                                      background: '#1e293b',
+                                      color: '#fff',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      whiteSpace: 'nowrap',
+                                      zIndex: 200,
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                      pointerEvents: 'none'
+                                    }}
+                                  >
+                                    {activeTooltip.name}
+                                    <div style={{
+                                      position: 'absolute',
+                                      bottom: '-4px',
+                                      left: '50%',
+                                      transform: 'translateX(-50%)',
+                                      width: 0,
+                                      height: 0,
+                                      borderLeft: '4px solid transparent',
+                                      borderRight: '4px solid transparent',
+                                      borderTop: '4px solid #1e293b'
+                                    }} />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           );
                         })}
                       </div>
@@ -167,16 +222,66 @@ const Challenges = () => {
                           const completed = !!(selectedDuel.progress[dStr] &&
                                                selectedDuel.progress[dStr][selectedDuel.opponent] &&
                                                selectedDuel.progress[dStr][selectedDuel.opponent][taskName]);
+                          const tooltipKey = `${dStr}_${idx}_opp`;
+                          const handleTriggerTooltip = () => {
+                            setActiveTooltip({ key: tooltipKey, name: taskName });
+                            if (window.tooltipTimer) clearTimeout(window.tooltipTimer);
+                            window.tooltipTimer = setTimeout(() => {
+                              setActiveTooltip(null);
+                            }, 2500);
+                          };
+
                           return (
-                            <Checkbox 
-                              key={`opp_${idx}`} 
-                              checked={completed} 
-                              disabled 
-                              style={{ 
-                                scale: 1.15,
-                                cursor: 'default'
-                              }}
-                            />
+                            <div 
+                              key={`opp_${idx}`}
+                              style={{ position: 'relative', display: 'inline-block' }}
+                              onMouseEnter={handleTriggerTooltip}
+                              onClick={handleTriggerTooltip}
+                            >
+                              {completed ? (
+                                <CheckCircle2 size={18} color="#52c41a" fill="#e6f4ea" style={{ cursor: 'pointer' }} />
+                              ) : (
+                                <XCircle size={18} color="#f5222d" fill="#fff1f0" style={{ cursor: 'pointer' }} />
+                              )}
+
+                              <AnimatePresence>
+                                {activeTooltip && activeTooltip.key === tooltipKey && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: -30, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    style={{
+                                      position: 'absolute',
+                                      left: '50%',
+                                      transform: 'translateX(-50%)',
+                                      background: '#1e293b',
+                                      color: '#fff',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      whiteSpace: 'nowrap',
+                                      zIndex: 200,
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                      pointerEvents: 'none'
+                                    }}
+                                  >
+                                    {activeTooltip.name}
+                                    <div style={{
+                                      position: 'absolute',
+                                      bottom: '-4px',
+                                      left: '50%',
+                                      transform: 'translateX(-50%)',
+                                      width: 0,
+                                      height: 0,
+                                      borderLeft: '4px solid transparent',
+                                      borderRight: '4px solid transparent',
+                                      borderTop: '4px solid #1e293b'
+                                    }} />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           );
                         })}
                       </div>
