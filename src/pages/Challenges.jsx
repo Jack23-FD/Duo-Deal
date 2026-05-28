@@ -15,6 +15,16 @@ const Challenges = () => {
   const [selectedDuelProgress, setSelectedDuelProgress] = useState(null);
   const [activeTooltip, setActiveTooltip] = useState(null);
 
+  const getLoggedInUser = () => {
+    try {
+      const data = localStorage.getItem('user_profile');
+      if (data) return JSON.parse(data);
+    } catch (e) {}
+    return null;
+  };
+  const loggedIn = getLoggedInUser();
+  const currentUsername = loggedIn?.username || 'Felix';
+
   const fetchDuels = useCallback(async () => {
     try {
       const res = await api.get('/duels/my');
@@ -78,18 +88,28 @@ const Challenges = () => {
     rateDiff = challengerRate - opponentRate;
   }
 
+  // Swap names so that the logged-in user is ALWAYS first (on the left)
+  let leftName = challengerName;
+  let rightName = opponentName;
+  let leftRate = challengerRate;
+  let rightRate = opponentRate;
+  let leftDiff = rateDiff;
+
+  if (selectedDuel) {
+    if (opponentName.toLowerCase() === currentUsername.toLowerCase()) {
+      leftName = opponentName;
+      rightName = challengerName;
+      leftRate = opponentRate;
+      rightRate = challengerRate;
+      leftDiff = -rateDiff;
+    }
+  }
+
   // Optimistic UI Toggle Handler
   const handleToggle = async (task, dateStr, username) => {
     const todayStr = dayjs().format('YYYY-MM-DD');
-    const getLoggedInUser = () => {
-      try {
-        const data = localStorage.getItem('user_profile');
-        if (data) return JSON.parse(data);
-      } catch (e) {}
-      return null;
-    };
-    const loggedIn = getLoggedInUser();
-    if (dateStr === todayStr && loggedIn && username.toLowerCase() === loggedIn.username.toLowerCase()) {
+    const loggedInUser = getLoggedInUser();
+    if (dateStr === todayStr && loggedInUser && username.toLowerCase() === loggedInUser.username.toLowerCase()) {
       
       // Save old state for reversion on network error
       const oldProgress = selectedDuelProgress ? { ...selectedDuelProgress } : null;
@@ -123,6 +143,8 @@ const Challenges = () => {
       }
       
       const newRate = totalPossibleTasks > 0 ? Math.round((completedCount / totalPossibleTasks) * 100) : 0;
+      
+      // Apply correct rate updates based on actual database username mappings
       if (username === challengerName) {
         updatedProgress.challengerCompletionRate = newRate;
       } else {
@@ -195,11 +217,11 @@ const Challenges = () => {
                 </div>
                 <h2 style={{ margin: '4px 0', fontWeight: 900, fontSize: '26px', color: '#0f172a', letterSpacing: '-0.5px' }}>Duo Progress</h2>
                 
-                {/* VS Badge — Blue & Orange Split */}
+                {/* VS Badge — Blue & Orange Split (Always shows current user first) */}
                 <div style={{ display: 'inline-flex', borderRadius: '12px', overflow: 'hidden', fontWeight: 700, fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginTop: '8px' }}>
-                  <span style={{ background: '#eff6ff', color: '#007bff', padding: '6px 14px' }}>{challengerName}</span>
+                  <span style={{ background: '#eff6ff', color: '#007bff', padding: '6px 14px' }}>{leftName}</span>
                   <span style={{ background: '#f8fafc', color: '#64748b', padding: '6px 10px', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }}>VS</span>
-                  <span style={{ background: '#fff7ed', color: '#ff8c00', padding: '6px 14px' }}>{opponentName}</span>
+                  <span style={{ background: '#fff7ed', color: '#ff8c00', padding: '6px 14px' }}>{rightName}</span>
                 </div>
               </div>
 
@@ -228,24 +250,24 @@ const Challenges = () => {
 
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                   
-                  {/* Left Column (Challenger - Blue text) */}
+                  {/* Left Column (Current User - Blue text) */}
                   <div style={{ textAlign: 'center', flex: 1, padding: '0 6px' }}>
                     <div style={{ fontSize: '11px', fontWeight: 800, color: '#007bff', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                      {challengerName}
+                      {leftName}
                     </div>
                     <div style={{ fontSize: '36px', fontWeight: 900, color: '#007bff', margin: '2px 0', letterSpacing: '-1.5px' }}>
-                      {challengerRate}%
+                      {leftRate}%
                     </div>
                     <div style={{ 
                       display: 'inline-block',
                       fontSize: '11px', 
                       fontWeight: 700, 
-                      color: rateDiff >= 0 ? '#16a34a' : '#dc2626',
-                      background: rateDiff >= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)',
+                      color: leftDiff >= 0 ? '#16a34a' : '#dc2626',
+                      background: leftDiff >= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)',
                       padding: '2px 8px',
                       borderRadius: '99px'
                     }}>
-                      {rateDiff >= 0 ? `+${rateDiff}%` : `${rateDiff}%`}
+                      {leftDiff >= 0 ? `+${leftDiff}%` : `${leftDiff}%`}
                     </div>
                   </div>
 
@@ -266,21 +288,21 @@ const Challenges = () => {
                   {/* Right Column (Opponent - Orange text) */}
                   <div style={{ textAlign: 'center', flex: 1, padding: '0 6px' }}>
                     <div style={{ fontSize: '11px', fontWeight: 800, color: '#ff8c00', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                      {opponentName}
+                      {rightName}
                     </div>
                     <div style={{ fontSize: '36px', fontWeight: 900, color: '#ff8c00', margin: '2px 0', letterSpacing: '-1.5px' }}>
-                      {opponentRate}%
+                      {rightRate}%
                     </div>
                     <div style={{ 
                       display: 'inline-block',
                       fontSize: '11px', 
                       fontWeight: 700, 
-                      color: rateDiff <= 0 ? '#16a34a' : '#dc2626',
-                      background: rateDiff <= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)',
+                      color: leftDiff <= 0 ? '#16a34a' : '#dc2626',
+                      background: leftDiff <= 0 ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)',
                       padding: '2px 8px',
                       borderRadius: '99px'
                     }}>
-                      {rateDiff <= 0 ? `+${Math.abs(rateDiff)}%` : `-${rateDiff}%`}
+                      {leftDiff <= 0 ? `+${Math.abs(leftDiff)}%` : `-${leftDiff}%`}
                     </div>
                   </div>
 
@@ -300,10 +322,10 @@ const Challenges = () => {
               }}>
                 <div style={{ width: '80px', flexShrink: 0, paddingLeft: '4px' }}>DATE</div>
                 <div style={{ flex: 1, textAlign: 'center', color: '#007bff', fontWeight: 800, fontSize: '11px', letterSpacing: '0.5px' }}>
-                  <span>{challengerName.toUpperCase()}</span>
+                  <span>{leftName.toUpperCase()}</span>
                 </div>
                 <div style={{ flex: 1, textAlign: 'center', color: '#ff8c00', fontWeight: 800, fontSize: '11px', letterSpacing: '0.5px' }}>
-                  <span>{opponentName.toUpperCase()}</span>
+                  <span>{rightName.toUpperCase()}</span>
                 </div>
               </div>
 
@@ -337,7 +359,7 @@ const Challenges = () => {
                         {isToday ? `🔥 ${formattedDate}` : formattedDate}
                       </div>
 
-                      {/* Challenger Checkboxes Column (Blue Accent) */}
+                      {/* Challenger/Left Checkboxes Column (Blue Accent) */}
                       <div style={{
                         flex: 1,
                         display: 'flex',
@@ -352,11 +374,12 @@ const Challenges = () => {
                       }}>
                         {(selectedDuel.tasks || []).map((t, idx) => {
                           const taskName = t.taskName || t.name || t;
+                          const firstLetter = taskName.charAt(0).toUpperCase();
                           const completed = !!(selectedDuelProgress &&
                                                selectedDuelProgress.dailyProgress &&
                                                selectedDuelProgress.dailyProgress[dStr] &&
-                                               selectedDuelProgress.dailyProgress[dStr][challengerName] &&
-                                               selectedDuelProgress.dailyProgress[dStr][challengerName][t.id]);
+                                               selectedDuelProgress.dailyProgress[dStr][leftName] &&
+                                               selectedDuelProgress.dailyProgress[dStr][leftName][t.id]);
 
                           const tooltipKey = `${dStr}_${idx}_ch`;
                           const handleTriggerTooltip = () => {
@@ -370,73 +393,86 @@ const Challenges = () => {
                           return (
                             <div 
                               key={`ch_${idx}`}
+                              title={`${taskName} (${leftName})`}
                               style={{ position: 'relative', display: 'inline-block' }}
                               onMouseEnter={handleTriggerTooltip}
                               onClick={() => {
                                 handleTriggerTooltip();
                                 if (!isFuture) {
-                                  handleToggle(t, dStr, challengerName);
+                                  handleToggle(t, dStr, leftName);
                                 }
                               }}
                             >
                               {completed ? (
                                 <div style={{
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: '50%',
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: '6px',
                                   background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                                   color: 'white',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   fontSize: '11px',
-                                  fontWeight: 'bold',
-                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.3)',
+                                  fontWeight: 800,
+                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.25)',
                                   cursor: isToday ? 'pointer' : 'default'
-                                }}>✓</div>
+                                }}>{firstLetter}</div>
                               ) : isPast ? (
                                 <div style={{
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: '50%',
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: '6px',
                                   background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                                   color: 'white',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '10px',
-                                  fontWeight: 'bold',
-                                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
                                   cursor: 'default'
-                                }}>✗</div>
+                                }}>{firstLetter}</div>
                               ) : isToday ? (
                                 <div 
                                   className="pulse-btn-blue"
                                   style={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: '50%',
-                                    border: '3px solid #007bff',
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: '6px',
+                                    border: '1.5px solid #007bff',
                                     background: 'white',
+                                    color: '#007bff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '11px',
+                                    fontWeight: 800,
                                     cursor: 'pointer',
                                   }} 
-                                />
+                                >{firstLetter}</div>
                               ) : (
                                 <div style={{
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: '50%',
-                                  border: '2px solid #cbd5e1',
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: '6px',
+                                  border: '1.5px solid #cbd5e1',
                                   background: '#f8fafc',
+                                  color: '#cbd5e1',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
                                   cursor: 'default'
-                                }} />
+                                }}>{firstLetter}</div>
                               )}
 
                               <AnimatePresence>
                                 {activeTooltip && activeTooltip.key === tooltipKey && (
                                   <motion.div
                                     initial={{ opacity: 0, y: -4, scale: 0.95 }}
-                                    animate={{ opacity: 1, y: -30, scale: 1 }}
+                                    animate={{ opacity: 1, y: -32, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     style={{
                                       position: 'absolute',
@@ -449,8 +485,8 @@ const Challenges = () => {
                                       fontSize: '11px',
                                       fontWeight: 600,
                                       whiteSpace: 'nowrap',
-                                      zIndex: 200,
-                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                      zIndex: 999,
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
                                       pointerEvents: 'none'
                                     }}
                                   >
@@ -474,7 +510,7 @@ const Challenges = () => {
                         })}
                       </div>
 
-                      {/* Opponent Checkboxes Column (Orange Accent) */}
+                      {/* Opponent/Right Checkboxes Column (Orange Accent) */}
                       <div style={{
                         flex: 1,
                         display: 'flex',
@@ -489,11 +525,12 @@ const Challenges = () => {
                       }}>
                         {(selectedDuel.tasks || []).map((t, idx) => {
                           const taskName = t.taskName || t.name || t;
+                          const firstLetter = taskName.charAt(0).toUpperCase();
                           const completed = !!(selectedDuelProgress &&
                                                selectedDuelProgress.dailyProgress &&
                                                selectedDuelProgress.dailyProgress[dStr] &&
-                                               selectedDuelProgress.dailyProgress[dStr][opponentName] &&
-                                               selectedDuelProgress.dailyProgress[dStr][opponentName][t.id]);
+                                               selectedDuelProgress.dailyProgress[dStr][rightName] &&
+                                               selectedDuelProgress.dailyProgress[dStr][rightName][t.id]);
 
                           const tooltipKey = `${dStr}_${idx}_opp`;
                           const handleTriggerTooltip = () => {
@@ -507,73 +544,86 @@ const Challenges = () => {
                           return (
                             <div 
                               key={`opp_${idx}`}
+                              title={`${taskName} (${rightName})`}
                               style={{ position: 'relative', display: 'inline-block' }}
                               onMouseEnter={handleTriggerTooltip}
                               onClick={() => {
                                 handleTriggerTooltip();
                                 if (!isFuture) {
-                                  handleToggle(t, dStr, opponentName);
+                                  handleToggle(t, dStr, rightName);
                                 }
                               }}
                             >
                               {completed ? (
                                 <div style={{
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: '50%',
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: '6px',
                                   background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                                   color: 'white',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   fontSize: '11px',
-                                  fontWeight: 'bold',
-                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.3)',
+                                  fontWeight: 800,
+                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.25)',
                                   cursor: isToday ? 'pointer' : 'default'
-                                }}>✓</div>
+                                }}>{firstLetter}</div>
                               ) : isPast ? (
                                 <div style={{
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: '50%',
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: '6px',
                                   background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                                   color: 'white',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '10px',
-                                  fontWeight: 'bold',
-                                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
                                   cursor: 'default'
-                                }}>✗</div>
+                                }}>{firstLetter}</div>
                               ) : isToday ? (
                                 <div 
                                   className="pulse-btn-orange"
                                   style={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: '50%',
-                                    border: '3px solid #ff8c00',
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: '6px',
+                                    border: '1.5px solid #ff8c00',
                                     background: 'white',
+                                    color: '#ff8c00',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '11px',
+                                    fontWeight: 800,
                                     cursor: 'pointer',
                                   }} 
-                                />
+                                >{firstLetter}</div>
                               ) : (
                                 <div style={{
-                                  width: 22,
-                                  height: 22,
-                                  borderRadius: '50%',
-                                  border: '2px solid #cbd5e1',
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: '6px',
+                                  border: '1.5px solid #cbd5e1',
                                   background: '#f8fafc',
+                                  color: '#cbd5e1',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
                                   cursor: 'default'
-                                }} />
+                                }}>{firstLetter}</div>
                               )}
 
                               <AnimatePresence>
                                 {activeTooltip && activeTooltip.key === tooltipKey && (
                                   <motion.div
                                     initial={{ opacity: 0, y: -4, scale: 0.95 }}
-                                    animate={{ opacity: 1, y: -30, scale: 1 }}
+                                    animate={{ opacity: 1, y: -32, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     style={{
                                       position: 'absolute',
@@ -586,8 +636,8 @@ const Challenges = () => {
                                       fontSize: '11px',
                                       fontWeight: 600,
                                       whiteSpace: 'nowrap',
-                                      zIndex: 200,
-                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                      zIndex: 999,
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
                                       pointerEvents: 'none'
                                     }}
                                   >
@@ -658,9 +708,23 @@ const Challenges = () => {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {activeDuels.map((duel, index) => {
-                  const chRate = duel.challengerCompletionRate || 0;
-                  const opRate = duel.opponentCompletionRate || 0;
-                  const delta = chRate - opRate;
+                  // Determine names, always putting the current user on the left
+                  const rawLeftName = duel.challengerName;
+                  const rawRightName = duel.opponentName;
+                  const rawLeftRate = duel.challengerCompletionRate || 0;
+                  const rawRightRate = duel.opponentCompletionRate || 0;
+
+                  let dispLeftName = rawLeftName;
+                  let dispRightName = rawRightName;
+                  let dispLeftRate = rawLeftRate;
+                  let dispRightRate = rawRightRate;
+
+                  if (rawRightName.toLowerCase() === currentUsername.toLowerCase()) {
+                    dispLeftName = rawRightName;
+                    dispRightName = rawLeftName;
+                    dispLeftRate = rawRightRate;
+                    dispRightRate = rawLeftRate;
+                  }
 
                   return (
                     <motion.div
@@ -690,7 +754,7 @@ const Challenges = () => {
                           background: 'linear-gradient(90deg, #007bff 0%, #ff8c00 100%)'
                         }} />
 
-                        {/* Top row: Badges and Battle index */}
+                        {/* Top row: Badges and Battle index (#Deal instead of Duel) */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                           <span style={{ 
                             fontSize: '10px', 
@@ -702,7 +766,7 @@ const Challenges = () => {
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
                           }}>
-                            ⚔️ Duel #{index + 1}
+                            ⚔️ #Deal {index + 1}
                           </span>
                           
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -711,15 +775,14 @@ const Challenges = () => {
                           </div>
                         </div>
 
-                        {/* Middle row: Fighter details and VS emblem */}
+                        {/* Middle row: Fighter details and VS emblem (Challenger/Opponent labels removed) */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                           
-                          {/* Challenger */}
+                          {/* Current User always first */}
                           <div style={{ flex: 1, textAlign: 'left' }}>
                             <Text strong style={{ fontSize: '14px', color: '#0f172a', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {duel.challengerName}
+                              {dispLeftName}
                             </Text>
-                            <span style={{ fontSize: '10px', color: '#007bff', fontWeight: 700 }}>Challenger</span>
                           </div>
 
                           {/* VS Circle */}
@@ -734,7 +797,8 @@ const Challenges = () => {
                             justifyContent: 'center',
                             fontSize: '11px', 
                             fontWeight: 900, 
-                            color: '#94a3b8'
+                            color: '#94a3b8',
+                            flexShrink: 0
                           }}>
                             VS
                           </div>
@@ -742,31 +806,30 @@ const Challenges = () => {
                           {/* Opponent */}
                           <div style={{ flex: 1, textAlign: 'right' }}>
                             <Text strong style={{ fontSize: '14px', color: '#0f172a', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {duel.opponentName}
+                              {dispRightName}
                             </Text>
-                            <span style={{ fontSize: '10px', color: '#ff8c00', fontWeight: 700 }}>Opponent</span>
                           </div>
 
                         </div>
 
                         {/* Dynamic Double Progress Bars */}
                         <div style={{ marginTop: '16px', background: '#f8fafc', padding: '12px', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-                          {/* Challenger Score */}
+                          {/* Left (Current User) Score */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginBottom: '4px' }}>
-                            <span style={{ color: '#475569', fontWeight: 600 }}>🔵 Completion Rate</span>
-                            <span style={{ color: '#007bff', fontWeight: 800 }}>{chRate}%</span>
+                            <span style={{ color: '#475569', fontWeight: 600 }}>🔵 {dispLeftName} Rate</span>
+                            <span style={{ color: '#007bff', fontWeight: 800 }}>{dispLeftRate}%</span>
                           </div>
                           <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '99px', overflow: 'hidden', marginBottom: '10px' }}>
-                            <div style={{ width: `${chRate}%`, height: '100%', background: 'linear-gradient(90deg, #007bff, #3b82f6)', borderRadius: '99px', transition: 'width 0.4s ease' }} />
+                            <div style={{ width: `${dispLeftRate}%`, height: '100%', background: 'linear-gradient(90deg, #007bff, #3b82f6)', borderRadius: '99px', transition: 'width 0.4s ease' }} />
                           </div>
 
-                          {/* Opponent Score */}
+                          {/* Right (Opponent) Score */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginBottom: '4px' }}>
-                            <span style={{ color: '#475569', fontWeight: 600 }}>🟠 Completion Rate</span>
-                            <span style={{ color: '#ff8c00', fontWeight: 800 }}>{opRate}%</span>
+                            <span style={{ color: '#475569', fontWeight: 600 }}>🟠 {dispRightName} Rate</span>
+                            <span style={{ color: '#ff8c00', fontWeight: 800 }}>{dispRightRate}%</span>
                           </div>
                           <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '99px', overflow: 'hidden' }}>
-                            <div style={{ width: `${opRate}%`, height: '100%', background: 'linear-gradient(90deg, #ff8c00, #f97316)', borderRadius: '99px', transition: 'width 0.4s ease' }} />
+                            <div style={{ width: `${dispRightRate}%`, height: '100%', background: 'linear-gradient(90deg, #ff8c00, #f97316)', borderRadius: '99px', transition: 'width 0.4s ease' }} />
                           </div>
                         </div>
 
@@ -821,7 +884,7 @@ const Challenges = () => {
           transition: all 0.2s ease-in-out;
         }
         .pulse-btn-blue:hover {
-          transform: scale(1.1);
+          transform: scale(1.05);
           background: #eff6ff;
         }
         .pulse-btn-orange {
@@ -829,7 +892,7 @@ const Challenges = () => {
           transition: all 0.2s ease-in-out;
         }
         .pulse-btn-orange:hover {
-          transform: scale(1.1);
+          transform: scale(1.05);
           background: #fff7ed;
         }
       `}} />
