@@ -506,12 +506,14 @@ const Activity = () => {
               >
                 {/* Text */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{
+                  <span style={{
                     margin: 0, fontSize: 15, fontWeight: 600,
                     color: 'var(--text-dark)',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    lineHeight: '1.4', padding: '2px 0'
-                  }}>{task.taskName}</p>
+                    wordBreak: 'break-word',
+                    lineHeight: '1.4',
+                    padding: '2px 0',
+                    display: 'block'
+                  }}>{task.taskName}</span>
                   <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{task.taskTime}</p>
                 </div>
 
@@ -703,11 +705,8 @@ const Activity = () => {
               ? '0 8px 24px rgba(82,196,26,0.35)'
               : '0 8px 24px rgba(255,140,0,0.4)',
             transition: 'all 0.35s ease',
-            fontFamily: 'inherit',
-            transform: 'translateY(0)',
+            fontFamily: 'inherit'
           }}
-          onMouseEnter={e => { if (!saved[dateKey]) e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
         >
           {saved[dateKey] ? (
             <><CheckCircle2 size={20} /> Activity Saved!</>

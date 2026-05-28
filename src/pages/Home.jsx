@@ -27,13 +27,14 @@ const HomeTaskRow = ({ title, time, completed }) => (
     }}
   >
     <div style={{ flex: 1, minWidth: 0 }}>
-      <p style={{
+      <span style={{
         margin: 0, fontSize: 15, fontWeight: 700,
         color: completed ? '#1e7e34' : 'var(--text-dark)',
-        textDecoration: 'none',
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-        lineHeight: '1.4', padding: '2px 0'
-      }}>{title}</p>
+        wordBreak: 'break-word',
+        lineHeight: '1.4',
+        padding: '2px 0',
+        display: 'block'
+      }}>{title}</span>
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{time}</p>
     </div>
   </div>
