@@ -544,7 +544,7 @@ const Home = () => {
                 }}>
                   <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-dark)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Swords size={16} color="var(--primary-orange)" />
-                    <span>Duel vs {duel.opponentName === currentUsername ? duel.challengerName : duel.opponentName}</span>
+                    <span>{duel.opponentName === currentUsername ? duel.challengerName : duel.opponentName}</span>
                   </div>
                   <div>
                     {(duel.tasks || []).map((task, idx) => {
