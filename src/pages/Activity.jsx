@@ -70,7 +70,6 @@ const StatusBadge = ({ completed }) => (
 const DuoTaskRow = ({ title, completed, onToggle }) => (
   <motion.div
     whileTap={{ scale: 0.98 }}
-    whileHover={{ scale: 1.01 }}
     onClick={onToggle}
     style={{
       display: 'flex',
@@ -502,7 +501,6 @@ const Activity = () => {
                 }}
                 onClick={() => toggleSoloTask(task.id)}
                 whileTap={{ scale: 0.98 }}
-                whileHover={{ scale: 1.01 }}
               >
                 {/* Text */}
                 <div style={{ flex: 1, minWidth: 0 }}>

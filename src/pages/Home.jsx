@@ -12,8 +12,7 @@ const { Title, Text } = Typography;
    Home Task Row Component
    ───────────────────────────────────────────── */
 const HomeTaskRow = ({ title, time, completed }) => (
-  <motion.div
-    whileHover={{ scale: 1.01 }}
+  <div
     style={{
       display: 'flex',
       alignItems: 'center',
@@ -36,7 +35,7 @@ const HomeTaskRow = ({ title, time, completed }) => (
       }}>{title}</p>
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{time}</p>
     </div>
-  </motion.div>
+  </div>
 );
 
 const getDuelCompletions = (duel) => {
