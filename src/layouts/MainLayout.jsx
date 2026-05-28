@@ -4,37 +4,63 @@ import BottomNavbar from '../components/BottomNavbar';
 import { Bell, Search, Mail } from 'lucide-react';
 import { Badge } from 'antd';
 import EmailSimulatorDrawer from '../components/EmailSimulatorDrawer';
+import NotificationsDrawer from '../components/NotificationsDrawer';
 import api from '../utils/api';
 
 const MainLayout = () => {
   const [emailOpen, setEmailOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Inline fetch with mount guard
+  // Fetch pending duels count and unread notification alerts count
+  const fetchCounts = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setPendingCount(0);
+      setUnreadCount(0);
+      return;
+    }
+    
+    // 1. Fetch pending invitations count
+    try {
+      const res = await api.get('/duels/pending');
+      setPendingCount(res.data?.count ?? 0);
+    } catch (err) {
+      console.error('Failed to fetch pending count:', err);
+      setPendingCount(0);
+    }
+
+    // 2. Fetch unread notification alerts count
+    try {
+      const res = await api.get('/notifications');
+      const unreadList = (res.data || []).filter(n => !n.isRead);
+      setUnreadCount(unreadList.length);
+    } catch (err) {
+      console.error('Failed to fetch unread notifications count:', err);
+      setUnreadCount(0);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-    const fetch = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        if (isMounted) setPendingCount(0);
-        return;
-      }
-      try {
-        const res = await api.get('/duels/pending');
-        if (isMounted) setPendingCount(res.data?.count ?? 0);
-      } catch (err) {
-        console.error('Failed to fetch pending count:', err);
-        if (isMounted) setPendingCount(0);
+    
+    const runFetch = () => {
+      if (isMounted) {
+        fetchCounts();
       }
     };
-    fetch();
+
+    runFetch();
+
     // Event listeners
-    window.addEventListener('activity_saved', fetch);
+    window.addEventListener('activity_saved', runFetch);
     const handleOpenEmail = () => setEmailOpen(true);
     window.addEventListener('open_email_simulator', handleOpenEmail);
 
     return () => {
-      window.removeEventListener('activity_saved', fetch);
+      isMounted = false;
+      window.removeEventListener('activity_saved', runFetch);
       window.removeEventListener('open_email_simulator', handleOpenEmail);
     };
   }, []);
@@ -69,7 +95,22 @@ const MainLayout = () => {
             </div>
           </Badge>
 
-          <Bell size={22} color="var(--text-dark)" style={{ cursor: 'pointer' }} />
+          {/* Active Battle Notifications Bell Trigger */}
+          <Badge count={unreadCount} size="small" style={{ backgroundColor: 'var(--primary-orange)' }}>
+            <div 
+              onClick={() => setNotificationsOpen(true)}
+              style={{
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4px',
+                animation: unreadCount > 0 ? 'pulse 2.5s infinite' : 'none'
+              }}
+            >
+              <Bell size={22} color={unreadCount > 0 ? 'var(--primary-orange)' : 'var(--text-dark)'} />
+            </div>
+          </Badge>
         </div>
       </header>
       
@@ -88,6 +129,13 @@ const MainLayout = () => {
       {/* Global simulated email overlay client */}
       <EmailSimulatorDrawer open={emailOpen} onClose={() => setEmailOpen(false)} />
 
+      {/* Global motivational battle notifications list client */}
+      <NotificationsDrawer 
+        open={notificationsOpen} 
+        onClose={() => setNotificationsOpen(false)} 
+        onRefreshCount={fetchCounts} 
+      />
+
       {/* Inject basic custom animation for the bouncing badge */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pulse {
@@ -101,4 +149,5 @@ const MainLayout = () => {
 };
 
 export default MainLayout;
+
 

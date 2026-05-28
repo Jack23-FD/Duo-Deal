@@ -190,6 +190,15 @@ public class DuelService {
                     user.setStreakDays(user.getStreakDays() + 1);
                     user.setLastStreakDate(today);
                 }
+                
+                // Save motivation notification for opponent
+                User opponent = duel.getChallenger().getId().equals(user.getId()) ? duel.getOpponent() : duel.getChallenger();
+                Notification motivNotification = Notification.builder()
+                        .user(opponent)
+                        .message("⚔️ " + user.getUsername() + " completed \"" + task.getTaskName() + "\" in your habit battle! Keep pushing! 💪")
+                        .isRead(false)
+                        .build();
+                notificationRepository.save(motivNotification);
             }
             
             // Deduct XP on unchecking, add XP on checking
@@ -213,6 +222,15 @@ public class DuelService {
             
             user.setTotalXp(user.getTotalXp() + 20); // Award 20 XP on checking
             duelTaskCompletionRepository.save(completion);
+
+            // Save motivation notification for opponent
+            User opponent = duel.getChallenger().getId().equals(user.getId()) ? duel.getOpponent() : duel.getChallenger();
+            Notification motivNotification = Notification.builder()
+                    .user(opponent)
+                    .message("⚔️ " + user.getUsername() + " completed \"" + task.getTaskName() + "\" in your habit battle! Keep pushing! 💪")
+                    .isRead(false)
+                    .build();
+            notificationRepository.save(motivNotification);
         }
     }
 

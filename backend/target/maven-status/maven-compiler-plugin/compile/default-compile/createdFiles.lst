@@ -15,6 +15,7 @@ com\duodeals\backend\exception\GlobalExceptionHandler.class
 com\duodeals\backend\repository\UserRepository.class
 com\duodeals\backend\config\DataSeeder.class
 com\duodeals\backend\entity\DuelTaskCompletion$DuelTaskCompletionBuilder.class
+com\duodeals\backend\controller\NotificationController$NotificationDto$NotificationDtoBuilder.class
 com\duodeals\backend\service\SoloTaskService.class
 com\duodeals\backend\dto\ChangePasswordRequest.class
 com\duodeals\backend\repository\DuelRepository.class
@@ -31,6 +32,7 @@ com\duodeals\backend\repository\DuelTaskCompletionRepository.class
 com\duodeals\backend\config\JwtService.class
 com\duodeals\backend\entity\Notification.class
 com\duodeals\backend\service\EmailService.class
+com\duodeals\backend\controller\NotificationController.class
 com\duodeals\backend\dto\DuelResponse$DuelResponseBuilder.class
 com\duodeals\backend\repository\SoloTaskRepository.class
 com\duodeals\backend\entity\User.class
@@ -44,6 +46,7 @@ com\duodeals\backend\repository\DuelTaskRepository.class
 com\duodeals\backend\config\SecurityConfig.class
 com\duodeals\backend\controller\AuthController.class
 com\duodeals\backend\dto\DuelResponse$DuelTaskDto.class
+com\duodeals\backend\controller\NotificationController$NotificationDto.class
 com\duodeals\backend\dto\ProfileStatsResponse$ProfileStatsResponseBuilder.class
 com\duodeals\backend\dto\DuelResponse$DuelTaskDto$DuelTaskDtoBuilder.class
 com\duodeals\backend\service\AuthService.class

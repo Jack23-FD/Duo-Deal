@@ -5,6 +5,7 @@ C:\Users\HP\Duo-Deals\backend\src\main\java\com\duodeals\backend\config\JwtServi
 C:\Users\HP\Duo-Deals\backend\src\main\java\com\duodeals\backend\config\SecurityConfig.java
 C:\Users\HP\Duo-Deals\backend\src\main\java\com\duodeals\backend\controller\AuthController.java
 C:\Users\HP\Duo-Deals\backend\src\main\java\com\duodeals\backend\controller\DuelController.java
+C:\Users\HP\Duo-Deals\backend\src\main\java\com\duodeals\backend\controller\NotificationController.java
 C:\Users\HP\Duo-Deals\backend\src\main\java\com\duodeals\backend\controller\ProfileController.java
 C:\Users\HP\Duo-Deals\backend\src\main\java\com\duodeals\backend\controller\SoloTaskController.java
 C:\Users\HP\Duo-Deals\backend\src\main\java\com\duodeals\backend\controller\UserController.java
