@@ -366,15 +366,14 @@ const Challenges = () => {
                         justifyContent: 'center',
                         gap: '6px',
                         flexWrap: 'wrap',
-                        background: isToday ? 'rgba(0, 123, 255, 0.06)' : 'rgba(0, 123, 255, 0.03)',
+                        background: isToday ? 'rgba(0, 123, 255, 0.05)' : 'rgba(0, 123, 255, 0.02)',
                         padding: '8px 4px',
                         borderRadius: '14px',
-                        border: isToday ? '1px solid rgba(0, 123, 255, 0.15)' : '1px solid rgba(0, 123, 255, 0.05)',
+                        border: isToday ? '1px solid rgba(0, 123, 255, 0.1)' : '1px solid rgba(0, 123, 255, 0.03)',
                         marginRight: '6px'
                       }}>
                         {(selectedDuel.tasks || []).map((t, idx) => {
                           const taskName = t.taskName || t.name || t;
-                          const firstLetter = taskName.charAt(0).toUpperCase();
                           const completed = !!(selectedDuelProgress &&
                                                selectedDuelProgress.dailyProgress &&
                                                selectedDuelProgress.dailyProgress[dStr] &&
@@ -413,11 +412,11 @@ const Challenges = () => {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '11px',
-                                  fontWeight: 800,
-                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.25)',
+                                  fontSize: '13px',
+                                  fontWeight: 900,
+                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.2)',
                                   cursor: isToday ? 'pointer' : 'default'
-                                }}>{firstLetter}</div>
+                                }}>✓</div>
                               ) : isPast ? (
                                 <div style={{
                                   width: 24,
@@ -430,9 +429,9 @@ const Challenges = () => {
                                   justifyContent: 'center',
                                   fontSize: '11px',
                                   fontWeight: 800,
-                                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
+                                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.2)',
                                   cursor: 'default'
-                                }}>{firstLetter}</div>
+                                }}>✗</div>
                               ) : isToday ? (
                                 <div 
                                   className="pulse-btn-blue"
@@ -440,32 +439,20 @@ const Challenges = () => {
                                     width: 24,
                                     height: 24,
                                     borderRadius: '6px',
-                                    border: '1.5px solid #007bff',
+                                    border: '1.5px solid rgba(0, 123, 255, 0.25)', // Extremely light soft blue border
                                     background: 'white',
-                                    color: '#007bff',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '11px',
-                                    fontWeight: 800,
                                     cursor: 'pointer',
                                   }} 
-                                >{firstLetter}</div>
+                                />
                               ) : (
                                 <div style={{
                                   width: 24,
                                   height: 24,
                                   borderRadius: '6px',
-                                  border: '1.5px solid #cbd5e1',
+                                  border: '1.5px solid #e2e8f0', // Extremely light grey border
                                   background: '#f8fafc',
-                                  color: '#cbd5e1',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '11px',
-                                  fontWeight: 800,
                                   cursor: 'default'
-                                }}>{firstLetter}</div>
+                                }} />
                               )}
 
                               <AnimatePresence>
@@ -517,15 +504,14 @@ const Challenges = () => {
                         justifyContent: 'center',
                         gap: '6px',
                         flexWrap: 'wrap',
-                        background: isToday ? 'rgba(255, 140, 0, 0.06)' : 'rgba(255, 140, 0, 0.03)',
+                        background: isToday ? 'rgba(255, 140, 0, 0.05)' : 'rgba(255, 140, 0, 0.02)',
                         padding: '8px 4px',
                         borderRadius: '14px',
-                        border: isToday ? '1px solid rgba(255, 140, 0, 0.15)' : '1px solid rgba(255, 140, 0, 0.05)',
+                        border: isToday ? '1px solid rgba(255, 140, 0, 0.1)' : '1px solid rgba(255, 140, 0, 0.03)',
                         marginLeft: '6px'
                       }}>
                         {(selectedDuel.tasks || []).map((t, idx) => {
                           const taskName = t.taskName || t.name || t;
-                          const firstLetter = taskName.charAt(0).toUpperCase();
                           const completed = !!(selectedDuelProgress &&
                                                selectedDuelProgress.dailyProgress &&
                                                selectedDuelProgress.dailyProgress[dStr] &&
@@ -564,11 +550,11 @@ const Challenges = () => {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '11px',
-                                  fontWeight: 800,
-                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.25)',
+                                  fontSize: '13px',
+                                  fontWeight: 900,
+                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.2)',
                                   cursor: isToday ? 'pointer' : 'default'
-                                }}>{firstLetter}</div>
+                                }}>✓</div>
                               ) : isPast ? (
                                 <div style={{
                                   width: 24,
@@ -581,9 +567,9 @@ const Challenges = () => {
                                   justifyContent: 'center',
                                   fontSize: '11px',
                                   fontWeight: 800,
-                                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
+                                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.2)',
                                   cursor: 'default'
-                                }}>{firstLetter}</div>
+                                }}>✗</div>
                               ) : isToday ? (
                                 <div 
                                   className="pulse-btn-orange"
@@ -591,32 +577,20 @@ const Challenges = () => {
                                     width: 24,
                                     height: 24,
                                     borderRadius: '6px',
-                                    border: '1.5px solid #ff8c00',
+                                    border: '1.5px solid rgba(255, 140, 0, 0.25)', // Extremely light soft orange border
                                     background: 'white',
-                                    color: '#ff8c00',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '11px',
-                                    fontWeight: 800,
                                     cursor: 'pointer',
                                   }} 
-                                >{firstLetter}</div>
+                                />
                               ) : (
                                 <div style={{
                                   width: 24,
                                   height: 24,
                                   borderRadius: '6px',
-                                  border: '1.5px solid #cbd5e1',
+                                  border: '1.5px solid #e2e8f0', // Extremely light grey border
                                   background: '#f8fafc',
-                                  color: '#cbd5e1',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '11px',
-                                  fontWeight: 800,
                                   cursor: 'default'
-                                }}>{firstLetter}</div>
+                                }} />
                               )}
 
                               <AnimatePresence>
@@ -870,14 +844,14 @@ const Challenges = () => {
       {/* Embedded styles for pulse and keyframe animations */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pulse-blue {
-          0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.45); border-color: #007bff; }
-          70% { box-shadow: 0 0 0 8px rgba(0, 123, 255, 0); border-color: #007bff; }
-          100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); border-color: #007bff; }
+          0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.3); }
+          70% { box-shadow: 0 0 0 6px rgba(0, 123, 255, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
         }
         @keyframes pulse-orange {
-          0% { box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.45); border-color: #ff8c00; }
-          70% { box-shadow: 0 0 0 8px rgba(255, 140, 0, 0); border-color: #ff8c00; }
-          100% { box-shadow: 0 0 0 0 rgba(255, 140, 0, 0); border-color: #ff8c00; }
+          0% { box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.3); }
+          70% { box-shadow: 0 0 0 6px rgba(255, 140, 0, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(255, 140, 0, 0); }
         }
         .pulse-btn-blue {
           animation: pulse-blue 2s infinite;
