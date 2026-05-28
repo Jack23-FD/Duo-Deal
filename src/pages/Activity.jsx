@@ -599,6 +599,7 @@ const Activity = () => {
                   {/* Duel Card Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
                     <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{currentUsername}</span>
                       <Swords size={18} color="var(--primary-orange)" />
                       <span style={{ background: 'var(--gradient-orange)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                         {opponentDisplay}
