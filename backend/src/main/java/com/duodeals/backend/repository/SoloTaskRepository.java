@@ -11,4 +11,7 @@ import java.util.List;
 public interface SoloTaskRepository extends JpaRepository<SoloTask, Long> {
     List<SoloTask> findByUserAndTaskDate(User user, LocalDate taskDate);
     List<SoloTask> findByUserIdAndTaskDate(Long userId, LocalDate taskDate);
+
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT t.taskDate FROM SoloTask t WHERE t.user.id = :userId AND t.taskDate < :date ORDER BY t.taskDate DESC")
+    List<LocalDate> findRecentTaskDates(@org.springframework.data.repository.query.Param("userId") Long userId, @org.springframework.data.repository.query.Param("date") LocalDate date);
 }

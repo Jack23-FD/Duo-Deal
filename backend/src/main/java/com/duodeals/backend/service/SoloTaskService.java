@@ -34,9 +34,31 @@ public class SoloTaskService {
         return mapToResponse(soloTask);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SoloTaskResponse> getTasksByDate(Long userId, LocalDate date) {
         List<SoloTask> tasks = soloTaskRepository.findByUserIdAndTaskDate(userId, date);
+        if (tasks.isEmpty()) {
+            List<LocalDate> recentDates = soloTaskRepository.findRecentTaskDates(userId, date);
+            if (!recentDates.isEmpty()) {
+                LocalDate mostRecentDate = recentDates.get(0);
+                List<SoloTask> recentTasks = soloTaskRepository.findByUserIdAndTaskDate(userId, mostRecentDate);
+                
+                List<SoloTask> copiedTasks = new java.util.ArrayList<>();
+                for (SoloTask recentTask : recentTasks) {
+                    SoloTask copied = SoloTask.builder()
+                            .user(recentTask.getUser())
+                            .taskName(recentTask.getTaskName())
+                            .taskTime(recentTask.getTaskTime())
+                            .taskDate(date)
+                            .isCompleted(false)
+                            .build();
+                    copiedTasks.add(copied);
+                }
+                
+                soloTaskRepository.saveAll(copiedTasks);
+                tasks = copiedTasks;
+            }
+        }
         return tasks.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
