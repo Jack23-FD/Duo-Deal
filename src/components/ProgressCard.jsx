@@ -55,7 +55,7 @@ const ProgressCard = ({ userProgress, opponentProgress, userName = 'Felix', oppo
           marginTop: 4,
           zIndex: 1,
         }}>
-          {userProgress}% Complete
+          {userProgress}% Completed
         </span>
       </div>
 
@@ -123,7 +123,7 @@ const ProgressCard = ({ userProgress, opponentProgress, userName = 'Felix', oppo
           marginTop: 4,
           zIndex: 1,
         }}>
-          {opponentProgress}% Complete
+          {opponentProgress}% Completed
         </span>
       </div>
     </motion.div>

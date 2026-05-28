@@ -186,7 +186,7 @@ const Register = () => {
 
             <div style={{ textAlign: 'center', marginTop: '16px' }}>
               <Text style={{ fontSize: '14px', color: 'var(--text-gray)' }}>
-                Already have an account? <Text strong type="link" onClick={() => navigate('/login')} style={{ color: 'var(--primary-orange)' }}>Log In</Text>
+                Already have an account? <Text strong type="link" onClick={() => navigate('/login')} style={{ color: 'var(--primary-orange)', cursor: 'pointer' }}>Log In</Text>
               </Text>
             </div>
           </div>
@@ -194,7 +194,7 @@ const Register = () => {
 
         <motion.div variants={itemVariants} style={{ textAlign: 'center', padding: '0 24px' }}>
           <Text style={{ fontSize: '12px', color: '#bfbfbf' }}>
-            By signing up, you agree to our <Text strong style={{ fontSize: '11px', color: '#8c8c8c' }}>Terms of Service</Text> and <Text strong style={{ fontSize: '11px', color: '#8c8c8c' }}>Privacy Policy</Text>.
+            By signing up, you agree to our <Text strong style={{ fontSize: '11px', color: '#8c8c8c', cursor: 'pointer' }} onClick={() => message.info('Terms of Service: Play fair, build real habits, and encourage your battle partner!')}>Terms of Service</Text> and <Text strong style={{ fontSize: '11px', color: '#8c8c8c', cursor: 'pointer' }} onClick={() => message.info('Privacy Policy: Your habit data is securely paired only with your designated battle opponent.')}>Privacy Policy</Text>.
           </Text>
         </motion.div>
       </motion.div>
@@ -203,3 +203,4 @@ const Register = () => {
 };
 
 export default Register;
+

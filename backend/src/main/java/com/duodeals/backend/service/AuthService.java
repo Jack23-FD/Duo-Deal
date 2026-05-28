@@ -81,6 +81,14 @@ public class AuthService {
                 .orElseThrow(() -> new BadRequestException("User not authenticated or not found"));
     }
 
+    @Transactional
+    public void resetPassword(String usernameOrEmail, String newPassword) {
+        User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+                .orElseThrow(() -> new BadRequestException("User not found with username or email: " + usernameOrEmail));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
     private AuthResponse buildAuthResponse(String token, User user) {
         AuthResponse.UserDetailsDto userDto = AuthResponse.UserDetailsDto.builder()
                 .id(user.getId())
@@ -98,3 +106,4 @@ public class AuthService {
                 .build();
     }
 }
+

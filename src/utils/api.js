@@ -39,11 +39,10 @@ api.interceptors.response.use(
 
       switch (status) {
         case 401:
-        case 403:
           // Token expired or invalid -> clear local storage and redirect to login
           localStorage.removeItem('token');
           localStorage.removeItem('user_profile');
-          message.error('Session expired or invalid. Please log in again.');
+          message.error('Session expired. Please log in again.');
           
           // Only redirect if we are not already on the login/register pages
           if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
@@ -51,6 +50,17 @@ api.interceptors.response.use(
               window.location.href = '/login';
             }, 1000);
           }
+          break;
+          
+        case 403:
+          // Forbidden — could be expired token or insufficient permission
+          // Only redirect to login if there's no token stored (truly unauthenticated)
+          if (!localStorage.getItem('token')) {
+            if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+              window.location.href = '/login';
+            }
+          }
+          // Otherwise let the caller handle 403 silently (e.g. search endpoint)
           break;
           
         case 404:

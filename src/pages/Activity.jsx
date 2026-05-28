@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, memo } from 'react';
 import { DatePicker, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   CheckCircle2, Circle, Calendar, Plus, Trash2,
   Flame, Save, ChevronLeft, ChevronRight, Target,
@@ -59,7 +59,7 @@ const StatusBadge = ({ completed }) => (
     boxShadow: completed ? '0 2px 8px rgba(82,196,26,0.15)' : '0 2px 8px rgba(255,77,79,0.15)',
     transition: 'all 0.2s ease',
   }}>
-    {completed ? 'Complete' : 'Incomplete'}
+    {completed ? 'Completed' : 'Incomplete'}
   </div>
 );
 
@@ -67,16 +67,15 @@ const StatusBadge = ({ completed }) => (
 /* ─────────────────────────────────────────────
    Duo Task Row (for Duo Deal tasks - Felix only)
    ───────────────────────────────────────────── */
-const DuoTaskRow = ({ title, completed, onToggle }) => (
-  <motion.div
-    whileTap={{ scale: 0.98 }}
+const DuoTaskRow = memo(({ title, completed, onToggle }) => (
+  <div
     onClick={onToggle}
     style={{
       display: 'flex',
       alignItems: 'center',
       gap: 14,
       background: completed ? '#e5ffe5' : '#ffffff',
-      border: completed ? '1px solid #52c41a' : '1px solid rgba(0,0,0,0.06)',
+      border: completed ? '1px solid #52c41a' : '1px solid var(--border-gray)',
       borderRadius: 16,
       padding: '14px 16px',
       marginBottom: 10,
@@ -100,8 +99,8 @@ const DuoTaskRow = ({ title, completed, onToggle }) => (
     <div style={{ flexShrink: 0 }}>
       <StatusBadge completed={completed} />
     </div>
-  </motion.div>
-);
+  </div>
+));
 
 /* ─────────────────────────────────────────────
    Main Page
@@ -179,7 +178,6 @@ const Activity = () => {
     return () => window.removeEventListener('activity_saved', fetchActiveDuelsAndProgress);
   }, [fetchActiveDuelsAndProgress]);
 
-  // Combined Progress Calculation: Solo Deal tasks + Felix's Duo Deal tasks
   const soloTotal = soloTasks.length;
   const soloDone = soloTasks.filter(t => t.isCompleted).length;
 
@@ -203,25 +201,21 @@ const Activity = () => {
   const done = soloDone + duoDone;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
 
-  /* navigation */
   const shiftDate = (days) => {
     setSelectedDate(d => d.add(days, 'day'));
   };
   const isToday = selectedDate.isSame(dayjs(), 'day');
 
-  /* toggle solo task */
   const toggleSoloTask = useCallback(async (taskId) => {
     try {
       const res = await api.patch(`/solo-tasks/${taskId}/complete`);
       setSoloTasks(prev => prev.map(t => t.id === taskId ? { ...t, isCompleted: res.data.isCompleted } : t));
       setSaved(prev => ({ ...prev, [dateKey]: false }));
-      window.dispatchEvent(new Event('activity_saved'));
     } catch (err) {
       console.error('Failed to toggle solo task:', err);
     }
   }, [dateKey]);
 
-  /* delete solo task */
   const deleteSoloTask = useCallback(async (taskId) => {
     try {
       await api.delete(`/solo-tasks/${taskId}`);
@@ -233,7 +227,6 @@ const Activity = () => {
     }
   }, [dateKey]);
 
-  /* add solo task */
   const addSoloTask = async () => {
     if (!newTitle.trim()) return;
     const formattedTime = newTime.trim() || 'Anytime';
@@ -273,7 +266,6 @@ const Activity = () => {
     });
   };
 
-  /* save completions and redirect */
   const handleSave = () => {
     setSaved(prev => ({ ...prev, [dateKey]: true }));
     messageApi.success({ content: 'Activity saved! Redirecting to Home...', duration: 1.5 });
@@ -282,7 +274,6 @@ const Activity = () => {
     }, 1200);
   };
 
-  /* label */
   const dateLabel = isToday
     ? 'Today'
     : selectedDate.isSame(dayjs().subtract(1, 'day'), 'day')
@@ -294,23 +285,14 @@ const Activity = () => {
       {contextHolder}
 
       {/* ── Header ── */}
-      <motion.div
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        style={{ marginBottom: 24 }}
-      >
+      <div style={{ marginBottom: 24 }}>
         <h2 style={{ margin: '2px 0 0', fontSize: 26, fontWeight: 800, letterSpacing: '-0.5px' }}>
           <span style={{ background: 'var(--gradient-orange)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Activities</span>
         </h2>
-      </motion.div>
+      </div>
 
       {/* ── Date Navigator ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        style={{
+      <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -347,14 +329,10 @@ const Activity = () => {
         >
           <ChevronRight size={20} color="var(--primary-orange)" />
         </button>
-      </motion.div>
+      </div>
 
       {/* ── Progress Card (Combined progress percentage) ── */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.15 }}
-        style={{
+      <div style={{
           background: 'linear-gradient(135deg, #ff8c00 0%, #ffb347 50%, #007bff 150%)',
           borderRadius: 24,
           padding: '22px 24px',
@@ -382,10 +360,8 @@ const Activity = () => {
           </div>
           {total > 0 && (
             <div style={{ marginTop: 14, width: 160, height: 6, background: 'rgba(255,255,255,0.25)', borderRadius: 99 }}>
-              <motion.div
-                animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.7, ease: 'easeOut' }}
-                style={{ height: '100%', background: '#fff', borderRadius: 99 }}
+              <div
+                style={{ width: `${pct}%`, height: '100%', background: '#fff', borderRadius: 99 }}
               />
             </div>
           )}
@@ -400,14 +376,10 @@ const Activity = () => {
             <Flame size={22} color="#fff" />
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* ── SECTION 1: 📋 Solo Deal ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        style={{
+      <div style={{
           background: '#fff',
           borderRadius: 24,
           padding: '20px 16px',
@@ -431,119 +403,94 @@ const Activity = () => {
         </div>
 
         {/* Add Task Form */}
-        <AnimatePresence>
-          {adding && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              style={{ overflow: 'hidden', marginBottom: 14 }}
-            >
-              <div style={{
-                background: '#fafafa', borderRadius: 16,
-                padding: 14, border: '1px dashed var(--primary-orange)'
-              }}>
+        {adding && (
+          <div style={{ overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{
+              background: '#fafafa', borderRadius: 16,
+              padding: 14, border: '1px dashed var(--primary-orange)'
+            }}>
+              <input
+                autoFocus
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addSoloTask()}
+                placeholder="Habit title..."
+                style={inputStyle}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <input
-                  autoFocus
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addSoloTask()}
-                  placeholder="Habit title..."
-                  style={inputStyle}
+                  value={newTime}
+                  onChange={e => setNewTime(e.target.value)}
+                  placeholder="Time (e.g. 08:00 AM) — Optional"
+                  style={{ ...inputStyle, flex: 1 }}
                 />
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <input
-                    value={newTime}
-                    onChange={e => setNewTime(e.target.value)}
-                    placeholder="Time (e.g. 08:00 AM) — Optional"
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <button onClick={addSoloTask} style={saveSmallBtn}>Add</button>
-                </div>
+                <button onClick={addSoloTask} style={saveSmallBtn}>Add</button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </div>
+        )}
 
         {/* Habits List */}
-        <AnimatePresence>
-          {soloTasks.length === 0 && !adding ? (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ textAlign: 'center', padding: '24px 0' }}
+        {soloTasks.length === 0 && !adding ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ margin: 0, color: 'var(--text-gray)', fontSize: 14 }}>No personal habits set for today</p>
+            <button
+              onClick={() => setAdding(true)}
+              style={{ ...saveSmallBtn, marginTop: 12, padding: '8px 20px' }}
             >
-              <p style={{ margin: 0, color: 'var(--text-gray)', fontSize: 14 }}>No personal habits set for today</p>
-              <button
-                onClick={() => setAdding(true)}
-                style={{ ...saveSmallBtn, marginTop: 12, padding: '8px 20px' }}
-              >
-                + Add Habit
-              </button>
-            </motion.div>
-          ) : (
-            soloTasks.map(task => (
-              <motion.div
-                key={task.id}
-                layout
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -40 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  background: task.isCompleted ? '#e5ffe5' : '#ffffff',
-                  border: task.isCompleted ? '1px solid #52c41a' : '1px solid rgba(0,0,0,0.06)',
-                  borderRadius: 16,
-                  padding: '14px 16px',
-                  marginBottom: 10,
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-                  cursor: 'pointer',
-                }}
-                onClick={() => toggleSoloTask(task.id)}
-                whileTap={{ scale: 0.98 }}
-              >
-                {/* Text */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{
-                    margin: 0, fontSize: 15, fontWeight: 600,
-                    color: 'var(--text-dark)',
-                    wordBreak: 'break-word',
-                    lineHeight: '1.4',
-                    padding: '2px 0',
-                    display: 'block'
-                  }}>{task.taskName}</span>
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{task.taskTime}</p>
-                </div>
+              + Add Habit
+            </button>
+          </div>
+        ) : (
+          soloTasks.map(task => (
+            <div
+              key={task.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                background: task.isCompleted ? '#e5ffe5' : '#ffffff',
+                border: task.isCompleted ? '1px solid #52c41a' : '1px solid var(--border-gray)',
+                borderRadius: 16,
+                padding: '14px 16px',
+                marginBottom: 10,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+                cursor: 'pointer',
+              }}
+              onClick={() => toggleSoloTask(task.id)}
+            >
+              {/* Text */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{
+                  margin: 0, fontSize: 15, fontWeight: 600,
+                  color: 'var(--text-dark)',
+                  wordBreak: 'break-word',
+                  lineHeight: '1.4',
+                  padding: '2px 0',
+                  display: 'block'
+                }}>{task.taskName}</span>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{task.taskTime}</p>
+              </div>
 
-                {/* Status Badge */}
-                <div style={{ flexShrink: 0 }}>
-                  <StatusBadge completed={task.isCompleted} />
-                </div>
+              {/* Status Badge */}
+              <div style={{ flexShrink: 0 }}>
+                <StatusBadge completed={task.isCompleted} />
+              </div>
 
-                {/* Delete */}
-                <div
-                  onClick={e => { e.stopPropagation(); deleteSoloTask(task.id); }}
-                  style={{ padding: 4, opacity: 0.4, transition: 'opacity 0.2s', marginLeft: 8 }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                  onMouseLeave={e => e.currentTarget.style.opacity = 0.4}
-                >
-                  <Trash2 size={16} color="#ff4d4f" />
-                </div>
-              </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </motion.div>
+              {/* Delete */}
+              <div
+                onClick={e => { e.stopPropagation(); deleteSoloTask(task.id); }}
+                style={{ padding: 4, opacity: 0.4, transition: 'opacity 0.2s', marginLeft: 8 }}
+              >
+                <Trash2 size={16} color="#ff4d4f" />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
       {/* ── SECTION 2: ⚔️ Duo Deal (Vertically stacked, Felix only) ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
-        style={{ marginBottom: 32 }}
-      >
+      <div style={{ marginBottom: 32 }}>
         <div style={{ padding: '0 4px', marginBottom: 16 }}>
           <h4 style={{ margin: 0, fontWeight: 800, fontSize: 18, color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>⚔️</span> Duo Deal
@@ -577,7 +524,6 @@ const Activity = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {activeDuels.map((duel) => {
               const progressData = duoProgressMap[duel.id];
-              // Calculate today's completion stats for current user
               const userDoneToday = (duel.tasks || []).filter(t => {
                 return !!(progressData &&
                           progressData.dailyProgress &&
@@ -637,7 +583,6 @@ const Activity = () => {
                              const currentlyCompleted = isCompleted;
                              const newCompletedState = !currentlyCompleted;
                              
-                             // Optimistic update
                              toggleLocalDuoProgress(duel.id, task.id, newCompletedState);
                              
                              try {
@@ -647,7 +592,6 @@ const Activity = () => {
                              } catch (err) {
                                console.error('Failed to toggle duel task:', err);
                                message.error('Failed to toggle task ⚔️');
-                               // Revert back on failure
                                toggleLocalDuoProgress(duel.id, task.id, currentlyCompleted);
                              }
                            }}
@@ -674,39 +618,35 @@ const Activity = () => {
             })}
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* ── Save Activity Button ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
+      <div>
         <button
           onClick={handleSave}
           disabled={saved[dateKey]}
-          style={{
-            width: '100%',
-            padding: '16px',
-            border: 'none',
-            borderRadius: 20,
-            background: saved[dateKey]
-              ? 'linear-gradient(135deg, #52c41a, #73d13d)'
-              : 'linear-gradient(135deg, #ff8c00, #ffb347)',
-            color: '#fff',
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: saved[dateKey] ? 'default' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            boxShadow: saved[dateKey]
-              ? '0 8px 24px rgba(82,196,26,0.35)'
-              : '0 8px 24px rgba(255,140,0,0.4)',
-            transition: 'all 0.35s ease',
-            fontFamily: 'inherit'
-          }}
+            style={{
+              width: '100%',
+              padding: '16px',
+              border: 'none',
+              borderRadius: 20,
+              background: saved[dateKey]
+                ? 'linear-gradient(135deg, #52c41a, #73d13d)'
+                : 'linear-gradient(135deg, #ff8c00, #ffb347)',
+              color: '#fff',
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: saved[dateKey] ? 'default' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              boxShadow: saved[dateKey]
+                ? '0 8px 24px rgba(82,196,26,0.35)'
+                : '0 8px 24px rgba(255,140,0,0.4)',
+              transition: 'all 0.1s ease',
+              fontFamily: 'inherit'
+            }}
         >
           {saved[dateKey] ? (
             <><CheckCircle2 size={20} /> Activity Saved!</>
@@ -714,7 +654,7 @@ const Activity = () => {
             <><Save size={20} /> Save Activity</>
           )}
         </button>
-      </motion.div>
+      </div>
     </div>
   );
 };
@@ -731,25 +671,35 @@ const Chip = ({ icon, label }) => (
 );
 
 const arrowBtn = {
-  width: 38, height: 38, borderRadius: 12, border: '1px solid rgba(255,140,0,0.2)',
-  background: 'rgba(255,140,0,0.06)', cursor: 'pointer',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  transition: 'all 0.2s',
+  width: 38,
+  height: 38,
+  borderRadius: 12,
+  // Updated to vibrant gradient background
+  background: 'linear-gradient(135deg, #ff7e5f, #feb47b)',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.1s',
 };
+
 
 const addBtn = {
   width: 38, height: 38, borderRadius: 12, border: 'none',
-  background: 'linear-gradient(135deg, #ff8c00, #ffb347)',
+  // Vibrant pink to yellow gradient for fast visual impact
+  background: 'linear-gradient(135deg, #ff4e50, #f9d423)',
   color: '#fff', cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
-  boxShadow: '0 4px 14px rgba(255,140,0,0.35)', transition: 'all 0.2s',
+  boxShadow: '0 4px 14px rgba(255,78,80,0.35)', transition: 'all 0.1s',
 };
 
 const saveSmallBtn = {
   padding: '8px 16px', borderRadius: 10, border: 'none',
-  background: 'linear-gradient(135deg, #ff8c00, #ffb347)',
+  // Updated gradient matching addBtn for visual consistency
+  background: 'linear-gradient(135deg, #ff4e50, #f9d423)',
   color: '#fff', fontWeight: 600, fontSize: 13,
   cursor: 'pointer', fontFamily: 'inherit',
+  boxShadow: '0 4px 14px rgba(255,78,80,.35)', transition: 'all 0.1s',
 };
 
 const inputStyle = {

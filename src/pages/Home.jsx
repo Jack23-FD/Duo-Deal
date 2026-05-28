@@ -11,6 +11,15 @@ const { Title, Text } = Typography;
 /* ─────────────────────────────────────────────
    Home Task Row Component
    ───────────────────────────────────────────── */
+// Case-insensitive progress lookup helper to avoid username casing mismatches
+const getUserProgress = (dailyProgress, dateStr, username, taskId) => {
+  if (!dailyProgress || !dailyProgress[dateStr]) return false;
+  const dayData = dailyProgress[dateStr];
+  const matchedKey = Object.keys(dayData).find(k => k.toLowerCase() === username.toLowerCase());
+  if (!matchedKey) return false;
+  return !!dayData[matchedKey]?.[taskId];
+};
+
 const HomeTaskRow = ({ title, time, completed }) => (
   <div
     style={{
@@ -18,7 +27,7 @@ const HomeTaskRow = ({ title, time, completed }) => (
       alignItems: 'center',
       gap: 14,
       background: completed ? '#e5ffe5' : '#ffffff',
-      border: completed ? '1.5px solid #52c41a' : '1px solid rgba(0,0,0,0.06)',
+      border: completed ? '1px solid #52c41a' : '1px solid var(--border-gray)',
       borderRadius: 16,
       padding: '14px 16px',
       marginBottom: 10,
@@ -247,11 +256,7 @@ const Home = () => {
     return (active.tasks || []).map((task) => {
       const taskName = task.taskName || task.name || task;
       const taskTime = task.taskTime || task.time || '';
-      const completed = !!(progressData &&
-                           progressData.dailyProgress &&
-                           progressData.dailyProgress[todayStr] &&
-                           progressData.dailyProgress[todayStr][currentUsername] &&
-                           progressData.dailyProgress[todayStr][currentUsername][task.id]);
+      const completed = getUserProgress(progressData?.dailyProgress, todayStr, currentUsername, task.id);
       return {
         id: task.id,
         title: taskName,
@@ -552,11 +557,7 @@ const Home = () => {
                       const taskName = task.taskName || task.name || task;
                       const taskTime = task.taskTime || task.time || '';
                       const progressData = duoProgressMap[duel.id];
-                      const isCompleted = !!(progressData &&
-                                             progressData.dailyProgress &&
-                                             progressData.dailyProgress[todayStr] &&
-                                             progressData.dailyProgress[todayStr][currentUsername] &&
-                                             progressData.dailyProgress[todayStr][currentUsername][task.id]);
+                      const isCompleted = getUserProgress(progressData?.dailyProgress, todayStr, currentUsername, task.id);
                       return (
                         <HomeTaskRow
                           key={`${duel.id}_${idx}`}

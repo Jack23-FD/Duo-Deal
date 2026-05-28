@@ -28,4 +28,13 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody java.util.Map<String, String> body) {
+        String usernameOrEmail = body.get("usernameOrEmail");
+        String newPassword = body.get("newPassword");
+        authService.resetPassword(usernameOrEmail, newPassword);
+        return ResponseEntity.ok(java.util.Map.of("message", "Password reset successfully"));
+    }
 }
+

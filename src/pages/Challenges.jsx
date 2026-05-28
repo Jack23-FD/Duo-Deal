@@ -8,6 +8,15 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
+// Case-insensitive progress lookup helper to avoid username casing mismatches
+const getUserProgress = (dailyProgress, dateStr, username, taskId) => {
+  if (!dailyProgress || !dailyProgress[dateStr]) return false;
+  const dayData = dailyProgress[dateStr];
+  const matchedKey = Object.keys(dayData).find(k => k.toLowerCase() === username.toLowerCase());
+  if (!matchedKey) return false;
+  return !!dayData[matchedKey]?.[taskId];
+};
+
 const Challenges = () => {
   const navigate = useNavigate();
   const [duelsList, setDuelsList] = useState([]);
@@ -115,11 +124,7 @@ const Challenges = () => {
       const oldProgress = selectedDuelProgress ? { ...selectedDuelProgress } : null;
       
       // Calculate active status optimistically
-      const currentVal = !!(selectedDuelProgress &&
-                           selectedDuelProgress.dailyProgress &&
-                           selectedDuelProgress.dailyProgress[dateStr] &&
-                           selectedDuelProgress.dailyProgress[dateStr][username] &&
-                           selectedDuelProgress.dailyProgress[dateStr][username][task.id]);
+      const currentVal = getUserProgress(selectedDuelProgress?.dailyProgress, dateStr, username, task.id);
       
       const newVal = !currentVal;
       
@@ -127,18 +132,22 @@ const Challenges = () => {
       const updatedProgress = JSON.parse(JSON.stringify(selectedDuelProgress || {}));
       if (!updatedProgress.dailyProgress) updatedProgress.dailyProgress = {};
       if (!updatedProgress.dailyProgress[dateStr]) updatedProgress.dailyProgress[dateStr] = {};
-      if (!updatedProgress.dailyProgress[dateStr][username]) updatedProgress.dailyProgress[dateStr][username] = {};
-      updatedProgress.dailyProgress[dateStr][username][task.id] = newVal;
+      
+      // Look up target key case-insensitively to set it
+      const dayData = updatedProgress.dailyProgress[dateStr];
+      let matchedKey = Object.keys(dayData).find(k => k.toLowerCase() === username.toLowerCase());
+      if (!matchedKey) {
+        dayData[username] = {};
+        matchedKey = username;
+      }
+      dayData[matchedKey][task.id] = newVal;
       
       // Calculate new completion rate optimistically
       const totalPossibleTasks = totalDays * (selectedDuel.tasks || []).length;
       let completedCount = 0;
       for (const d of datesList) {
-        const dayProgress = updatedProgress.dailyProgress[d]?.[username] || {};
-        for (const t of selectedDuel.tasks || []) {
-          if (dayProgress[t.id]) {
-            completedCount++;
-          }
+        if (getUserProgress(updatedProgress.dailyProgress, d, username, task.id)) {
+          completedCount++;
         }
       }
       
@@ -374,11 +383,7 @@ const Challenges = () => {
                       }}>
                         {(selectedDuel.tasks || []).map((t, idx) => {
                           const taskName = t.taskName || t.name || t;
-                          const completed = !!(selectedDuelProgress &&
-                                               selectedDuelProgress.dailyProgress &&
-                                               selectedDuelProgress.dailyProgress[dStr] &&
-                                               selectedDuelProgress.dailyProgress[dStr][leftName] &&
-                                               selectedDuelProgress.dailyProgress[dStr][leftName][t.id]);
+                          const completed = getUserProgress(selectedDuelProgress?.dailyProgress, dStr, leftName, t.id);
 
                           const tooltipKey = `${dStr}_${idx}_ch`;
                           const handleTriggerTooltip = () => {
@@ -414,6 +419,9 @@ const Challenges = () => {
                                   justifyContent: 'center',
                                   fontSize: '13px',
                                   fontWeight: 900,
+                                  lineHeight: 1,
+                                  textAlign: 'center',
+                                  fontFamily: 'Arial, sans-serif',
                                   boxShadow: '0 2px 6px rgba(34, 197, 94, 0.2)',
                                   cursor: isToday ? 'pointer' : 'default'
                                 }}>✓</div>
@@ -427,8 +435,11 @@ const Challenges = () => {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '11px',
-                                  fontWeight: 800,
+                                  fontSize: '13px',
+                                  fontWeight: 900,
+                                  lineHeight: 1,
+                                  textAlign: 'center',
+                                  fontFamily: 'Arial, sans-serif',
                                   boxShadow: '0 2px 6px rgba(239, 68, 68, 0.2)',
                                   cursor: 'default'
                                 }}>✗</div>
@@ -512,11 +523,7 @@ const Challenges = () => {
                       }}>
                         {(selectedDuel.tasks || []).map((t, idx) => {
                           const taskName = t.taskName || t.name || t;
-                          const completed = !!(selectedDuelProgress &&
-                                               selectedDuelProgress.dailyProgress &&
-                                               selectedDuelProgress.dailyProgress[dStr] &&
-                                               selectedDuelProgress.dailyProgress[dStr][rightName] &&
-                                               selectedDuelProgress.dailyProgress[dStr][rightName][t.id]);
+                          const completed = getUserProgress(selectedDuelProgress?.dailyProgress, dStr, rightName, t.id);
 
                           const tooltipKey = `${dStr}_${idx}_opp`;
                           const handleTriggerTooltip = () => {
@@ -552,6 +559,9 @@ const Challenges = () => {
                                   justifyContent: 'center',
                                   fontSize: '13px',
                                   fontWeight: 900,
+                                  lineHeight: 1,
+                                  textAlign: 'center',
+                                  fontFamily: 'Arial, sans-serif',
                                   boxShadow: '0 2px 6px rgba(34, 197, 94, 0.2)',
                                   cursor: isToday ? 'pointer' : 'default'
                                 }}>✓</div>
@@ -565,8 +575,11 @@ const Challenges = () => {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '11px',
-                                  fontWeight: 800,
+                                  fontSize: '13px',
+                                  fontWeight: 900,
+                                  lineHeight: 1,
+                                  textAlign: 'center',
+                                  fontFamily: 'Arial, sans-serif',
                                   boxShadow: '0 2px 6px rgba(239, 68, 68, 0.2)',
                                   cursor: 'default'
                                 }}>✗</div>

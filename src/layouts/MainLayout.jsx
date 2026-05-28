@@ -5,11 +5,13 @@ import { Bell, Search, Mail } from 'lucide-react';
 import { Badge } from 'antd';
 import EmailSimulatorDrawer from '../components/EmailSimulatorDrawer';
 import NotificationsDrawer from '../components/NotificationsDrawer';
+import SearchDrawer from '../components/SearchDrawer';
 import api from '../utils/api';
 
 const MainLayout = () => {
   const [emailOpen, setEmailOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -76,7 +78,12 @@ const MainLayout = () => {
       <header className="instagram-header" style={{ flexShrink: 0 }}>
         <div className="logo gradient-text" style={{ fontSize: '22px' }}>Duo Deals</div>
         <div className="header-actions" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <Search size={22} color="var(--text-dark)" style={{ cursor: 'pointer' }} />
+          <Search 
+            size={22} 
+            color="var(--text-dark)" 
+            style={{ cursor: 'pointer' }} 
+            onClick={() => setSearchOpen(true)}
+          />
           
           {/* Simulated Email Client Trigger in Header */}
           <Badge count={pendingCount} size="small" style={{ backgroundColor: 'var(--primary-orange)' }}>
@@ -125,6 +132,9 @@ const MainLayout = () => {
       </main>
 
       <BottomNavbar />
+
+      {/* Global search overlay */}
+      <SearchDrawer open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Global simulated email overlay client */}
       <EmailSimulatorDrawer open={emailOpen} onClose={() => setEmailOpen(false)} />

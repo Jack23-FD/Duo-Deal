@@ -249,22 +249,12 @@ public class DuelService {
         
         long daysCount = ChronoUnit.DAYS.between(start, end) + 1;
 
-        LocalDate today = LocalDate.now();
-        LocalDate targetLimit = today.plusDays(1);
-        if (targetLimit.isAfter(end.plusDays(1))) {
-            targetLimit = end.plusDays(1);
-        }
-        if (targetLimit.isBefore(start)) {
-            targetLimit = start;
-        }
+        long totalSlots = tasks.size() * daysCount;
 
-        long totalDaysForCalc = ChronoUnit.DAYS.between(start, targetLimit);
-        long totalSlots = tasks.size() * totalDaysForCalc;
-
-        long challengerDone = duelTaskCompletionRepository.countByDuelTaskDuelIdAndUserIdAndIsCompletedAndCompletionDateBefore(
-                duelId, challenger.getId(), true, targetLimit);
-        long opponentDone = duelTaskCompletionRepository.countByDuelTaskDuelIdAndUserIdAndIsCompletedAndCompletionDateBefore(
-                duelId, opponent.getId(), true, targetLimit);
+        long challengerDone = duelTaskCompletionRepository.countByDuelTaskDuelIdAndUserIdAndIsCompleted(
+                duelId, challenger.getId(), true);
+        long opponentDone = duelTaskCompletionRepository.countByDuelTaskDuelIdAndUserIdAndIsCompleted(
+                duelId, opponent.getId(), true);
 
         int challengerRate = totalSlots == 0 ? 0 : (int) Math.round((challengerDone * 100.0) / totalSlots);
         int opponentRate = totalSlots == 0 ? 0 : (int) Math.round((opponentDone * 100.0) / totalSlots);

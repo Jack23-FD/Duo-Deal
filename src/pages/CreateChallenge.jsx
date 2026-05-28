@@ -39,8 +39,9 @@ const CreateChallenge = () => {
     if (val.trim().length < 3) { setSuggestedUsers([]); return; }
     try {
       const res = await api.get('/users/search', { params: { username: val.trim() } });
-      setSuggestedUsers(res.data);
+      setSuggestedUsers(res.data || []);
     } catch (err) {
+      console.error('User search failed:', err?.response?.status, err?.response?.data || err?.message);
       setSuggestedUsers([]);
     }
   };
