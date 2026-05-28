@@ -81,7 +81,7 @@ api.interceptors.response.use(
           break;
       }
     } else if (error.request) {
-      message.error('Unable to connect to the server. Please check if backend is running on port 8081.');
+    message.error('Unable to connect to the server. Please try again later.');
     } else {
       message.error('An error occurred during request processing.');
     }
