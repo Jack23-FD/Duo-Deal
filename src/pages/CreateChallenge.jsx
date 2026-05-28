@@ -1,37 +1,57 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Typography, Input, DatePicker, Button, Space, Avatar, message } from 'antd';
 import { Search, Plus, Trash2, Swords, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { challengeStore } from '../utils/challengeStore';
+import api from '../utils/api';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
-
-const mockUsers = ['Alex', 'Sarah', 'Jordan', 'Taylor', 'Chris'];
 
 const CreateChallenge = () => {
   const [tasks, setTasks] = useState([{ name: '', time: '' }]);
   const [opponent, setOpponent] = useState('');
   const [selectedOpponent, setSelectedOpponent] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
+  const [selectedOpponentId, setSelectedOpponentId] = useState(null);
+  const [selectedOpponentEmail, setSelectedOpponentEmail] = useState(null);
+  const [selectedOpponentPhoto, setSelectedOpponentPhoto] = useState(null);
+  const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [dateRange, setDateRange] = useState([null, null]);
   const [isSending, setIsSending] = useState(false);
+  const searchRef = useRef(null);
 
-  const handleOpponentInput = (e) => {
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setSuggestedUsers([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleOpponentInput = async (e) => {
     const val = e.target.value;
     setOpponent(val);
     setSelectedOpponent(null);
-    if (val.length > 0) {
-      setSuggestions(mockUsers.filter(u => u.toLowerCase().includes(val.toLowerCase())));
-    } else {
-      setSuggestions([]);
+    setSelectedOpponentId(null);
+    setSelectedOpponentEmail(null);
+    setSelectedOpponentPhoto(null);
+    if (val.trim().length < 3) { setSuggestedUsers([]); return; }
+    try {
+      const res = await api.get('/users/search', { params: { username: val.trim() } });
+      setSuggestedUsers(res.data);
+    } catch (err) {
+      setSuggestedUsers([]);
     }
   };
 
-  const selectOpponent = (name) => {
-    setOpponent(name);
-    setSelectedOpponent(name);
-    setSuggestions([]);
+  const selectOpponent = (user) => {
+    setOpponent(user.username);
+    setSelectedOpponent(user.username);
+    setSelectedOpponentId(user.id);
+    setSelectedOpponentEmail(user.email);
+    setSelectedOpponentPhoto(user.profilePhotoUrl);
+    setSuggestedUsers([]);
   };
 
   const addTask = () => setTasks([...tasks, { name: '', time: '' }]);
@@ -47,38 +67,34 @@ const CreateChallenge = () => {
     setTasks(newTasks);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!selectedOpponent) { message.warning('Please select an opponent first.'); return; }
     if (!dateRange[0] || !dateRange[1]) { message.warning('Please select a duration.'); return; }
-    const emptyTasks = tasks.filter(t => !t || !t.name || !t.name.trim());
-    if (emptyTasks.length > 0) { message.warning('Please fill in all task names.'); return; }
-    
+    if (tasks.filter(t => !t.name.trim()).length > 0) { message.warning('Please fill in all task names.'); return; }
+
     setIsSending(true);
-    
-    // Simulate premium delivery flow
-    setTimeout(() => {
-      // Save in store
-      challengeStore.createChallenge({
-        opponent: selectedOpponent,
-        startDate: dateRange[0].toDate(),
-        endDate: dateRange[1].toDate(),
-        tasks: tasks
+    try {
+      const res = await api.post('/duels', {
+        opponentId: selectedOpponentId,
+        opponentUsernameOrEmail: selectedOpponent,
+        startDate: dateRange[0].format('YYYY-MM-DD'),
+        endDate: dateRange[1].format('YYYY-MM-DD'),
+        tasks: tasks.map(t => ({ taskName: t.name.trim(), taskTime: t.time.trim() || 'Anytime' }))
       });
 
-      setIsSending(false);
-      message.success('Challenge Sent! 🎯 Simulated email delivered to opponent.');
-
-      // Clear inputs
+      message.success('Challenge Sent! 🎯 Email delivered to opponent.');
       setTasks([{ name: '', time: '' }]);
       setOpponent('');
       setSelectedOpponent(null);
+      setSelectedOpponentId(null);
+      setSelectedOpponentEmail(null);
+      setSelectedOpponentPhoto(null);
       setDateRange([null, null]);
-
-      // Automatically open email client overlay with a slight delay
-      setTimeout(() => {
-        window.dispatchEvent(new Event('open_email_simulator'));
-      }, 1000);
-    }, 1500);
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Failed to create challenge');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const containerVariants = {
@@ -96,14 +112,15 @@ const CreateChallenge = () => {
       animate="visible"
       variants={containerVariants}
       className="page-container"
-      style={{ background: '#fafafa', minHeight: '100vh', paddingBottom: '100px' }}
+      style={{ background: '#fafafa', paddingBottom: '100px' }}
     >
       {/* Header */}
       <motion.div variants={itemVariants} style={{ marginBottom: '28px' }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '12px',
           background: 'linear-gradient(135deg, #ff8c00, #007bff)',
-          borderRadius: '16px', padding: '20px', color: 'white'
+          borderRadius: '16px', padding: '20px', color: 'white',
+          boxShadow: '0 8px 24px rgba(255,140,0,0.15)'
         }}>
           <Swords size={32} />
           <div>
@@ -113,47 +130,75 @@ const CreateChallenge = () => {
         </div>
       </motion.div>
 
-      {/* Opponent Search */}
-      <motion.div variants={itemVariants} className="modern-card" style={{ padding: '20px', marginBottom: '16px', position: 'relative' }}>
-        <Text strong style={{ fontSize: '15px', display: 'block', marginBottom: '12px' }}>
+      {/* Find Opponent — NO modern-card class, overflow visible */}
+      <motion.div
+        variants={itemVariants}
+        style={{
+          background: 'white',
+          borderRadius: '16px',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+          padding: '20px',
+          marginBottom: '16px',
+          overflow: 'visible',  /* CRITICAL — allows dropdown to float */
+          position: 'relative',
+          zIndex: 100
+        }}
+      >
+        <Text strong style={{ fontSize: '15px', display: 'block', marginBottom: '12px', color: '#1e293b' }}>
           <span style={{ color: 'var(--primary-orange)' }}>①</span> Find Opponent
         </Text>
-        <div style={{ position: 'relative', zIndex: 10 }}>
+
+        {/* Search wrapper — relative so dropdown anchors here */}
+        <div ref={searchRef} style={{ position: 'relative' }}>
           <Input
-            prefix={<Search size={16} color="#999" />}
-            placeholder="Search by username..."
+            prefix={<Search size={16} color="var(--primary-orange)" />}
+            placeholder="Type username to search..."
             value={opponent}
             onChange={handleOpponentInput}
-            style={{ borderRadius: '10px', height: '44px' }}
+            style={{ borderRadius: '10px', height: '44px', border: '1.5px solid #e2e8f0' }}
           />
-          {/* Suggestions Dropdown */}
-          <AnimatePresence>
-            {suggestions.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
-                  background: 'white', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', overflow: 'hidden', marginTop: '4px'
-                }}
-              >
-                {suggestions.map(name => (
-                  <div
-                    key={name}
-                    onClick={() => selectOpponent(name)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', cursor: 'pointer', transition: 'background 0.2s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                  >
-                    <Avatar size={32} src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`} />
-                    <Text strong>{name}</Text>
-                    <Text type="secondary" style={{ fontSize: '12px', marginLeft: 'auto' }}>@{name.toLowerCase()}</Text>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+
+          {/* Dropdown — absolute, floats OVER everything below */}
+          {suggestedUsers.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 4px)',
+              left: 0,
+              right: 0,
+              zIndex: 99999,
+              background: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              border: '1.5px solid #E8820C',
+              overflow: 'hidden'
+            }}>
+              {suggestedUsers.map(u => (
+                <div
+                  key={u.id}
+                  onClick={() => selectOpponent(u)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '10px 14px', cursor: 'pointer', transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.05)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                >
+                  <Avatar
+                    size={36}
+                    src={u.profilePhotoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`}
+                  />
+                  <Text style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{u.username}</Text>
+                  <span style={{
+                    marginLeft: 'auto', padding: '3px 10px', borderRadius: '20px',
+                    background: 'rgba(249,115,22,0.08)', color: 'var(--primary-orange)',
+                    fontSize: '11px', fontWeight: 700
+                  }}>
+                    @{u.username.toLowerCase()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Selected Opponent Badge */}
@@ -162,42 +207,55 @@ const CreateChallenge = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px', background: 'linear-gradient(135deg, rgba(255,140,0,0.08), rgba(0,123,255,0.08))', borderRadius: '10px', padding: '12px' }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px',
+                background: 'linear-gradient(90deg, #fff7ed, #eff6ff)',
+                border: '1.5px solid #ffedd5', borderRadius: '12px', padding: '12px 16px'
+              }}
             >
-              <Avatar size={40} src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedOpponent}`} />
-              <div>
+              <Avatar
+                size={40}
+                src={selectedOpponentPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedOpponent}`}
+              />
+              <div style={{ flex: 1 }}>
                 <Text strong style={{ display: 'block' }}>{selectedOpponent}</Text>
-                <Text type="secondary" style={{ fontSize: '12px' }}>Ready for a duel!</Text>
+                <Text type="secondary" style={{ fontSize: '12px' }}>Ready to battle! ⚔️</Text>
               </div>
-              <CheckCircle size={20} color="#52c41a" style={{ marginLeft: 'auto' }} />
+              <span style={{ fontSize: '10px', background: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '10px', fontWeight: 800 }}>
+                OPPONENT
+              </span>
+              <Button
+                type="text" danger size="small"
+                onClick={() => { setOpponent(''); setSelectedOpponent(null); setSelectedOpponentId(null); setSelectedOpponentPhoto(null); }}
+                style={{ borderRadius: '50%', width: 28, height: 28, padding: 0, background: '#fee2e2' }}
+              >
+                ✕
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
 
-      {/* Duration */}
+      {/* Duration — modern-card class OK here */}
       <motion.div variants={itemVariants} className="modern-card" style={{ padding: '20px', marginBottom: '16px' }}>
-        <Text strong style={{ fontSize: '15px', display: 'block', marginBottom: '12px' }}>
+        <Text strong style={{ fontSize: '15px', display: 'block', marginBottom: '12px', color: '#1e293b' }}>
           <span style={{ color: 'var(--primary-orange)' }}>②</span> Duration
         </Text>
         <RangePicker
-          style={{ width: '100%', borderRadius: '10px', height: '44px' }}
+          style={{ width: '100%', borderRadius: '10px', height: '44px', border: '1.5px solid #e2e8f0' }}
           onChange={(dates) => setDateRange(dates || [null, null])}
+          value={dateRange}
         />
       </motion.div>
 
       {/* Daily Tasks */}
       <motion.div variants={itemVariants} className="modern-card" style={{ padding: '20px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <Text strong style={{ fontSize: '15px' }}>
+          <Text strong style={{ fontSize: '15px', color: '#1e293b' }}>
             <span style={{ color: 'var(--primary-orange)' }}>③</span> Daily Tasks
           </Text>
-          <Button
-            type="text"
-            icon={<Plus size={15} />}
-            onClick={addTask}
-            style={{ color: 'var(--primary-orange)', fontWeight: 600 }}
-          >
+          <Button type="text" icon={<Plus size={15} />} onClick={addTask} style={{ color: 'var(--primary-orange)', fontWeight: 700 }}>
             Add Task
           </Button>
         </div>
@@ -221,26 +279,20 @@ const CreateChallenge = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
                   <Input
-                    placeholder={`Task name (required)`}
+                    placeholder="Task name (required)"
                     value={task.name}
                     onChange={(e) => updateTaskName(index, e.target.value)}
-                    style={{ borderRadius: '10px', flex: 2 }}
+                    style={{ borderRadius: '10px', flex: 2, height: '40px' }}
                   />
                   <Input
-                    placeholder={`Time (optional)`}
+                    placeholder="Time (optional)"
                     value={task.time}
                     onChange={(e) => updateTaskTime(index, e.target.value)}
-                    style={{ borderRadius: '10px', flex: 1 }}
+                    style={{ borderRadius: '10px', flex: 1, height: '40px' }}
                   />
                 </div>
                 {tasks.length > 1 && (
-                  <Button
-                    type="text"
-                    danger
-                    icon={<Trash2 size={16} />}
-                    onClick={() => removeTask(index)}
-                    style={{ flexShrink: 0 }}
-                  />
+                  <Button type="text" danger icon={<Trash2 size={16} />} onClick={() => removeTask(index)} />
                 )}
               </motion.div>
             ))}
@@ -248,27 +300,19 @@ const CreateChallenge = () => {
         </Space>
       </motion.div>
 
-      {/* Create Button */}
+      {/* Send Button */}
       <motion.div variants={itemVariants}>
         <Button
-          block
-          size="large"
-          onClick={handleCreate}
-          loading={isSending}
-          disabled={isSending}
+          block size="large" onClick={handleCreate}
+          loading={isSending} disabled={isSending}
           style={{
             background: 'linear-gradient(135deg, #ff8c00, #007bff)',
-            border: 'none',
-            color: 'white',
-            fontWeight: 700,
-            borderRadius: '12px',
-            height: '52px',
-            fontSize: '16px',
-            letterSpacing: '0.5px',
-            boxShadow: '0 8px 20px rgba(255, 140, 0, 0.35)',
+            border: 'none', color: 'white', fontWeight: 700,
+            borderRadius: '12px', height: '52px', fontSize: '16px',
+            boxShadow: '0 8px 20px rgba(255,140,0,0.35)', cursor: 'pointer'
           }}
         >
-          {isSending ? 'Forging Contract ⚔️' : '⚔️ Send Challenge'}
+          {isSending ? 'Sending... ⚔️' : '⚔️ Send Challenge'}
         </Button>
       </motion.div>
     </motion.div>

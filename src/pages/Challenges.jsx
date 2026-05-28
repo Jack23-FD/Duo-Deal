@@ -1,35 +1,78 @@
-import { useState, useSyncExternalStore } from 'react';
-import { Typography, Card, Avatar, Space, Row, Col, Tag, Button, Checkbox } from 'antd';
+import { useState, useEffect, useCallback } from 'react';
+import { Typography, Card, Avatar, Space, Row, Col, Tag, Button, message } from 'antd';
 import { Swords, ClipboardList, Award, PlusCircle, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { challengeStore } from '../utils/challengeStore';
+import api from '../utils/api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 const Challenges = () => {
   const navigate = useNavigate();
+  const [duelsList, setDuelsList] = useState([]);
   const [selectedDuelId, setSelectedDuelId] = useState(null);
+  const [selectedDuelProgress, setSelectedDuelProgress] = useState(null);
   const [activeTooltip, setActiveTooltip] = useState(null);
 
-  const subscribeToChallenges = (callback) => {
-    window.addEventListener('challenge_store_update', callback);
-    return () => window.removeEventListener('challenge_store_update', callback);
+  const fetchDuels = useCallback(async () => {
+    try {
+      const res = await api.get('/duels/my');
+      const activeFromApi = res.data.filter(d => d.status === 'ACTIVE');
+      setDuelsList(activeFromApi);
+    } catch (err) {
+      console.error('Failed to fetch active duels from database:', err);
+    }
+  }, [selectedDuelId]);
+
+  const fetchProgress = useCallback(async (id) => {
+    try {
+      const res = await api.get(`/duels/${id}/progress`);
+      setSelectedDuelProgress(res.data);
+    } catch (err) {
+      console.error("Failed to fetch duel progress:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDuels();
+    window.addEventListener('activity_saved', fetchDuels);
+    return () => window.removeEventListener('activity_saved', fetchDuels);
+  }, [fetchDuels]);
+
+  useEffect(() => {
+    if (selectedDuelId) {
+      fetchProgress(selectedDuelId);
+    }
+  }, [selectedDuelId, fetchProgress]);
+
+  const handleToggle = async (task, dateStr, username) => {
+    const todayStr = dayjs().format('YYYY-MM-DD');
+    const getLoggedInUser = () => {
+      try {
+        const data = localStorage.getItem('user_profile');
+        if (data) return JSON.parse(data);
+      } catch (e) {}
+      return null;
+    };
+    const loggedIn = getLoggedInUser();
+    if (dateStr === todayStr && loggedIn && username.toLowerCase() === loggedIn.username.toLowerCase()) {
+      try {
+        await api.patch(`/duels/tasks/${task.id}/complete`, null, { params: { date: dateStr } });
+        message.success('Task status updated! ⚔️');
+        fetchProgress(selectedDuelId);
+        window.dispatchEvent(new Event('activity_saved'));
+      } catch (err) {
+        console.error("Failed to toggle duel task:", err);
+      }
+    }
   };
 
-  const challenges = useSyncExternalStore(
-    subscribeToChallenges,
-    () => challengeStore.getChallenges(),
-    () => challengeStore.getChallenges()
-  );
-
-  const activeDuels = challenges.filter(ch => ch.status === 'ACTIVE');
+  const activeDuels = duelsList;
   
-  // Find currently selected duel or default to the first active one if selectedDuelId is not set
   const selectedDuel = selectedDuelId 
     ? activeDuels.find(d => d.id === selectedDuelId)
-    : (activeDuels.length > 0 ? activeDuels[0] : null);
+    : null;
 
   // Calculations for active selected duel
   let totalDays = 0;
@@ -37,57 +80,40 @@ const Challenges = () => {
   let challengerRate = 0;
   let opponentRate = 0;
   let rateDiff = 0;
+  let challengerName = 'Challenger';
+  let opponentName = 'Opponent';
 
   if (selectedDuel) {
     const start = dayjs(selectedDuel.startDate);
     const end = dayjs(selectedDuel.endDate);
     totalDays = end.diff(start, 'day') + 1;
 
-    // Generate dates list from start to end (reverse chronological order)
-    for (let i = totalDays - 1; i >= 0; i--) {
+    // Generate dates list from start to end (chronological order: oldest first)
+    for (let i = 0; i < totalDays; i++) {
       datesList.push(start.add(i, 'day').format('YYYY-MM-DD'));
     }
 
-    // Calculate overall completion rates
-    let chTotal = 0;
-    let chDone = 0;
-    let oppTotal = 0;
-    let oppDone = 0;
-
-    datesList.forEach(dStr => {
-      selectedDuel.tasks.forEach(t => {
-        const taskName = t.name || t;
-        
-        chTotal++;
-        const chCompleted = !!(selectedDuel.progress[dStr] &&
-                               selectedDuel.progress[dStr][selectedDuel.challenger] &&
-                               selectedDuel.progress[dStr][selectedDuel.challenger][taskName]);
-        if (chCompleted) chDone++;
-
-        oppTotal++;
-        const oppCompleted = !!(selectedDuel.progress[dStr] &&
-                               selectedDuel.progress[dStr][selectedDuel.opponent] &&
-                               selectedDuel.progress[dStr][selectedDuel.opponent][taskName]);
-        if (oppCompleted) oppDone++;
-      });
-    });
-
-    challengerRate = chTotal === 0 ? 0 : Math.round((chDone / chTotal) * 100);
-    opponentRate = oppTotal === 0 ? 0 : Math.round((oppDone / oppTotal) * 100);
+    challengerName = selectedDuelProgress ? selectedDuelProgress.challengerName : selectedDuel.challengerName || 'Challenger';
+    opponentName = selectedDuelProgress ? selectedDuelProgress.opponentName : selectedDuel.opponentName || 'Opponent';
+    challengerRate = selectedDuelProgress ? selectedDuelProgress.challengerCompletionRate : selectedDuel.challengerCompletionRate || 0;
+    opponentRate = selectedDuelProgress ? selectedDuelProgress.opponentCompletionRate : selectedDuel.opponentCompletionRate || 0;
     rateDiff = challengerRate - opponentRate;
   }
 
   return (
     <div className="deals-page-container" style={{ background: 'linear-gradient(135deg, #f0f7ff 0%, #fffbf0 100%)', minHeight: '100vh', paddingBottom: '30px' }}>
       
-
       <div className="page-content" style={{ padding: '0 15px' }}>
         
-        {/* If an active selected duel is being viewed, render the Doo Challenge Detail Grid */}
         {selectedDuel ? (
           <div>
+            {/* Top Back Arrow & Title */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 0 8px' }}>
+              <Button type="text" icon={<ArrowLeft size={20} />} onClick={() => setSelectedDuelId(null)} />
+              <Text strong style={{ fontSize: '15px' }}>Back to Active Deals</Text>
+            </div>
 
-            {/* Doo Challenge Detail Card */}
+            {/* Duo Challenge Detail Card */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -106,9 +132,9 @@ const Challenges = () => {
                 
                 {/* VS Badge — Blue & Orange Split */}
                 <div style={{ display: 'inline-flex', borderRadius: '8px', overflow: 'hidden', fontWeight: 700, fontSize: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <span style={{ background: '#e6f7ff', color: '#007bff', padding: '4px 12px' }}>{selectedDuel.challenger}</span>
+                  <span style={{ background: '#e6f7ff', color: '#007bff', padding: '4px 12px' }}>{challengerName}</span>
                   <span style={{ background: '#f1f5f9', color: '#64748b', padding: '4px 8px' }}>VS</span>
-                  <span style={{ background: '#fff7e6', color: '#ff8c00', padding: '4px 12px' }}>{selectedDuel.opponent}</span>
+                  <span style={{ background: '#fff7e6', color: '#ff8c00', padding: '4px 12px' }}>{opponentName}</span>
                 </div>
               </div>
 
@@ -120,37 +146,60 @@ const Challenges = () => {
                 marginBottom: '12px',
                 fontWeight: 700,
                 fontSize: '12px',
-                color: '#64748b'
+                color: '#64748b',
+                alignItems: 'flex-end'
               }}>
-                <div style={{ width: '80px', flexShrink: 0 }}>DATE</div>
-                <div style={{ flex: 1, textAlign: 'center', color: '#007bff', fontWeight: 800 }}>{selectedDuel.challenger.toUpperCase()}</div>
-                <div style={{ flex: 1, textAlign: 'center', color: '#ff8c00', fontWeight: 800 }}>{selectedDuel.opponent.toUpperCase()}</div>
+                <div style={{ width: '80px', flexShrink: 0, paddingBottom: '4px' }}>DATE</div>
+                <div style={{ flex: 1, textAlign: 'center', color: '#007bff', fontWeight: 800, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span>{challengerName.toUpperCase()}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#007bff', marginTop: '2px' }}>{challengerRate}%</span>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center', color: '#ff8c00', fontWeight: 800, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span>{opponentName.toUpperCase()}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 900, color: '#ff8c00', marginTop: '2px' }}>{opponentRate}%</span>
+                </div>
               </div>
 
               {/* Daily Checklist Side-By-Side Row Grid */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
                 {datesList.map(dStr => {
-                  const formattedDate = dayjs(dStr).format('DD/M/YY');
+                  const todayStr = dayjs().format('YYYY-MM-DD');
+                  const isToday = dStr === todayStr;
+                  const isPast = dayjs(dStr).isBefore(dayjs(todayStr), 'day');
+                  const isFuture = dayjs(dStr).isAfter(dayjs(todayStr), 'day');
+                  const formattedDate = dayjs(dStr).format('D/M/YY');
                   
                   return (
                     <div key={dStr} style={{
                       display: 'flex',
                       alignItems: 'center',
-                      paddingBottom: '10px',
-                      borderBottom: '1px dashed #f1f5f9'
+                      padding: isToday ? '10px 8px' : '4px 0',
+                      borderLeft: isToday ? '4px solid #ff8c00' : 'none',
+                      background: isToday ? '#fff7e6' : 'transparent',
+                      borderRadius: isToday ? '8px' : '0',
+                      borderBottom: isToday ? '1px solid rgba(255, 140, 0, 0.15)' : '1px dashed #f1f5f9'
                     }}>
                       {/* Date Column */}
-                      <div style={{ width: '80px', fontSize: '13px', fontWeight: 600, color: '#334155', flexShrink: 0 }}>
-                        {formattedDate}
+                      <div style={{ 
+                        width: '85px', 
+                        fontSize: '13px', 
+                        fontWeight: isToday ? 800 : 600, 
+                        color: isToday ? '#ff8c00' : '#334155', 
+                        flexShrink: 0 
+                      }}>
+                        {isToday ? `📅 ${formattedDate}` : formattedDate}
                       </div>
 
-                      {/* Challenger (Felix/Jack23) Checkboxes Column */}
+                      {/* Challenger Checkboxes Column */}
                       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        {selectedDuel.tasks.map((t, idx) => {
-                          const taskName = t.name || t;
-                          const completed = !!(selectedDuel.progress[dStr] &&
-                                               selectedDuel.progress[dStr][selectedDuel.challenger] &&
-                                               selectedDuel.progress[dStr][selectedDuel.challenger][taskName]);
+                        {(selectedDuel.tasks || []).map((t, idx) => {
+                          const taskName = t.taskName || t.name || t;
+                          const completed = !!(selectedDuelProgress &&
+                                               selectedDuelProgress.dailyProgress &&
+                                               selectedDuelProgress.dailyProgress[dStr] &&
+                                               selectedDuelProgress.dailyProgress[dStr][challengerName] &&
+                                               selectedDuelProgress.dailyProgress[dStr][challengerName][t.id]);
+
                           const tooltipKey = `${dStr}_${idx}_ch`;
                           const handleTriggerTooltip = () => {
                             setActiveTooltip({ key: tooltipKey, name: taskName });
@@ -165,12 +214,59 @@ const Challenges = () => {
                               key={`ch_${idx}`}
                               style={{ position: 'relative', display: 'inline-block' }}
                               onMouseEnter={handleTriggerTooltip}
-                              onClick={handleTriggerTooltip}
+                              onClick={() => {
+                                handleTriggerTooltip();
+                                if (!isFuture) {
+                                  handleToggle(t, dStr, challengerName);
+                                }
+                              }}
                             >
                               {completed ? (
-                                <CheckCircle2 size={18} color="#52c41a" fill="#e6f4ea" style={{ cursor: 'pointer' }} />
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '4px',
+                                  background: '#52c41a',
+                                  color: 'white',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: 'bold',
+                                  cursor: isToday ? 'pointer' : 'default'
+                                }}>✓</div>
+                              ) : isPast ? (
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '4px',
+                                  background: '#ff4d4f',
+                                  color: 'white',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: 'bold',
+                                  cursor: 'default'
+                                }}>✗</div>
+                              ) : isToday ? (
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '4px',
+                                  border: '2px solid #ff8c00',
+                                  background: 'white',
+                                  cursor: 'pointer'
+                                }} />
                               ) : (
-                                <XCircle size={18} color="#f5222d" fill="#fff1f0" style={{ cursor: 'pointer' }} />
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '4px',
+                                  border: '2px solid #cbd5e1',
+                                  background: '#f8fafc',
+                                  cursor: 'default'
+                                }} />
                               )}
 
                               <AnimatePresence>
@@ -217,11 +313,14 @@ const Challenges = () => {
 
                       {/* Opponent Checkboxes Column */}
                       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        {selectedDuel.tasks.map((t, idx) => {
-                          const taskName = t.name || t;
-                          const completed = !!(selectedDuel.progress[dStr] &&
-                                               selectedDuel.progress[dStr][selectedDuel.opponent] &&
-                                               selectedDuel.progress[dStr][selectedDuel.opponent][taskName]);
+                        {(selectedDuel.tasks || []).map((t, idx) => {
+                          const taskName = t.taskName || t.name || t;
+                          const completed = !!(selectedDuelProgress &&
+                                               selectedDuelProgress.dailyProgress &&
+                                               selectedDuelProgress.dailyProgress[dStr] &&
+                                               selectedDuelProgress.dailyProgress[dStr][opponentName] &&
+                                               selectedDuelProgress.dailyProgress[dStr][opponentName][t.id]);
+
                           const tooltipKey = `${dStr}_${idx}_opp`;
                           const handleTriggerTooltip = () => {
                             setActiveTooltip({ key: tooltipKey, name: taskName });
@@ -236,12 +335,59 @@ const Challenges = () => {
                               key={`opp_${idx}`}
                               style={{ position: 'relative', display: 'inline-block' }}
                               onMouseEnter={handleTriggerTooltip}
-                              onClick={handleTriggerTooltip}
+                              onClick={() => {
+                                handleTriggerTooltip();
+                                if (!isFuture) {
+                                  handleToggle(t, dStr, opponentName);
+                                }
+                              }}
                             >
                               {completed ? (
-                                <CheckCircle2 size={18} color="#52c41a" fill="#e6f4ea" style={{ cursor: 'pointer' }} />
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '4px',
+                                  background: '#52c41a',
+                                  color: 'white',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: 'bold',
+                                  cursor: isToday ? 'pointer' : 'default'
+                                }}>✓</div>
+                              ) : isPast ? (
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '4px',
+                                  background: '#ff4d4f',
+                                  color: 'white',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: 'bold',
+                                  cursor: 'default'
+                                }}>✗</div>
+                              ) : isToday ? (
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '4px',
+                                  border: '2px solid #ff8c00',
+                                  background: 'white',
+                                  cursor: 'pointer'
+                                }} />
                               ) : (
-                                <XCircle size={18} color="#f5222d" fill="#fff1f0" style={{ cursor: 'pointer' }} />
+                                <div style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: '4px',
+                                  border: '2px solid #cbd5e1',
+                                  background: '#f8fafc',
+                                  cursor: 'default'
+                                }} />
                               )}
 
                               <AnimatePresence>
@@ -293,52 +439,45 @@ const Challenges = () => {
               {/* Bottom Side-By-Side Rate Comparison Board */}
               <div style={{
                 background: '#f8fafc',
-                borderRadius: '16px',
-                padding: '16px',
-                border: '1px solid #e2e8f0',
-                marginTop: '16px'
+                borderRadius: '20px',
+                padding: '20px',
+                border: '1.5px solid #e2e8f0',
+                marginTop: '20px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                   
-                  {/* Left Column (Challenger) */}
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                      {selectedDuel.challenger}
+                  {/* Left Column (Challenger - Blue text) */}
+                  <div style={{ textAlign: 'center', flex: 1 }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#007bff' }}>
+                      {challengerName}
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: 900, color: '#007bff', margin: '4px 0' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 900, color: '#007bff', margin: '4px 0' }}>
                       {challengerRate}%
                     </div>
-                    {/* Comparative indicator */}
                     <div style={{ 
-                      fontSize: '11px', 
+                      fontSize: '13px', 
                       fontWeight: 700, 
-                      color: rateDiff >= 0 ? '#22c55e' : '#ef4444',
-                      background: rateDiff >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      padding: '2px 8px',
-                      borderRadius: '10px'
+                      color: '#007bff'
                     }}>
                       {rateDiff >= 0 ? `+${rateDiff}%` : `${rateDiff}%`}
                     </div>
                   </div>
 
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#cbd5e1' }}>VS</div>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#cbd5e1', padding: '0 10px' }}>VS</div>
 
-                  {/* Right Column (Opponent) */}
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
-                      {selectedDuel.opponent}
+                  {/* Right Column (Opponent - Orange text) */}
+                  <div style={{ textAlign: 'center', flex: 1 }}>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#ff8c00' }}>
+                      {opponentName}
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: 900, color: '#ff8c00', margin: '4px 0' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 900, color: '#ff8c00', margin: '4px 0' }}>
                       {opponentRate}%
                     </div>
-                    {/* Comparative indicator */}
                     <div style={{ 
-                      fontSize: '11px', 
+                      fontSize: '13px', 
                       fontWeight: 700, 
-                      color: rateDiff <= 0 ? '#22c55e' : '#ef4444',
-                      background: rateDiff <= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      padding: '2px 8px',
-                      borderRadius: '10px'
+                      color: '#ff8c00'
                     }}>
                       {rateDiff <= 0 ? `+${Math.abs(rateDiff)}%` : `-${rateDiff}%`}
                     </div>
@@ -391,15 +530,15 @@ const Challenges = () => {
                   >
                     <Card
                       className="modern-card"
-                      bodyStyle={{ padding: '16px 20px' }}
+                      styles={{ body: { padding: '16px 20px' } }}
                       style={{ cursor: 'pointer', border: '1px solid rgba(0,0,0,0.03)' }}
                     >
-                      <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                           <span style={{ fontSize: '24px' }}>🥊</span>
                           <div>
                             <Text strong style={{ fontSize: '14px', display: 'block', color: '#1e293b' }}>
-                              {duel.challenger === 'Jack23' ? 'Jack23' : 'Felix'} VS {duel.opponent}
+                              {duel.challengerName} VS {duel.opponentName}
                             </Text>
                             <Text type="secondary" style={{ fontSize: '11px' }}>
                               Daily Task Battle #{index + 1}

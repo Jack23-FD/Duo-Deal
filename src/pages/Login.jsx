@@ -1,16 +1,38 @@
-import { Form, Input, Button, Typography, Divider } from 'antd';
+import { useState } from 'react';
+import { Form, Input, Button, Typography, Divider, message } from 'antd';
 import { User, Lock, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import api from '../utils/api';
 
 const { Text } = Typography;
 
 const Login = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  const onFinish = (values) => {
-    console.log('Success:', values);
-    navigate('/');
+  const onFinish = async (values) => {
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/login', {
+        usernameOrEmail: values.username,
+        password: values.password
+      });
+      
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user_profile', JSON.stringify(res.data.user));
+      message.success('Login successful!');
+      
+      window.dispatchEvent(new Event('activity_saved'));
+      setTimeout(() => {
+        navigate('/');
+      }, 1000);
+    } catch (err) {
+      console.error('Login failed:', err);
+      message.error(err.response?.data?.message || 'Login failed: Invalid username or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const containerVariants = {
@@ -111,9 +133,10 @@ const Login = () => {
                   type="primary" 
                   htmlType="submit" 
                   block 
+                  loading={loading}
                   style={{ height: '54px', fontSize: '16px', borderRadius: '16px' }}
                   icon={<ArrowRight size={18} />}
-                  iconPosition="end"
+                  iconPlacement="end"
                 >
                   Sign In
                 </Button>

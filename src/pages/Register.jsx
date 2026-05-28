@@ -1,16 +1,40 @@
-import { Form, Input, Button, Typography } from 'antd';
+import { useState } from 'react';
+import { Form, Input, Button, Typography, message } from 'antd';
 import { User, Lock, Mail, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import api from '../utils/api';
 
 const { Text } = Typography;
 
 const Register = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
-  const onFinish = (values) => {
-    console.log('Success:', values);
-    navigate('/');
+  const onFinish = async (values) => {
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/register', {
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        confirmPassword: values.confirm
+      });
+      
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user_profile', JSON.stringify(res.data.user));
+      message.success('Registration successful! Logging you in...');
+      
+      window.dispatchEvent(new Event('activity_saved'));
+      setTimeout(() => {
+        navigate('/');
+      }, 1000);
+    } catch (err) {
+      console.error('Registration failed:', err);
+      message.error(err.response?.data?.message || 'Registration failed: Username or email already exists');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const containerVariants = {
@@ -150,9 +174,10 @@ const Register = () => {
                   type="primary" 
                   htmlType="submit" 
                   block 
+                  loading={loading}
                   style={{ height: '54px', fontSize: '16px', borderRadius: '16px' }}
                   icon={<ArrowRight size={18} />}
-                  iconPosition="end"
+                  iconPlacement="end"
                 >
                   Create Account
                 </Button>

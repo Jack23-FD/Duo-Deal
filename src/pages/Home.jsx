@@ -1,9 +1,9 @@
-import { useSyncExternalStore, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import api from '../utils/api';
 import { Typography, Avatar, Badge, Space } from 'antd';
 import { Flame, Target, Bell, Search, TrendingUp, MoreHorizontal, Swords } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { challengeStore } from '../utils/challengeStore';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -31,7 +31,7 @@ const HomeTaskRow = ({ title, time, completed }) => (
       <p style={{
         margin: 0, fontSize: 15, fontWeight: 700,
         color: completed ? '#1e7e34' : 'var(--text-dark)',
-        textDecoration: completed ? 'line-through' : 'none',
+        textDecoration: 'none',
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
       }}>{title}</p>
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{time}</p>
@@ -160,54 +160,154 @@ const VSBattleCard = ({ challenger, opponent, challengerRate, opponentRate }) =>
 const Home = () => {
   const navigate = useNavigate();
   const todayStr = dayjs().format('YYYY-MM-DD');
+  const [streakDays, setStreakDays] = useState(0);
+  const [userName, setUserName] = useState('Felix');
+  const [userAvatar, setUserAvatar] = useState(null);
 
-  const subscribeToChallengeUpdates = useCallback((callback) => {
-    window.addEventListener('challenge_store_update', callback);
-    return () => window.removeEventListener('challenge_store_update', callback);
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/users/me');
+        console.log('User API response:', res.data); // check streakDays here
+        setStreakDays(res.data.streakDays ?? res.data.streak_days ?? 0);
+        setUserName(res.data.username || 'Felix');
+        setUserAvatar(res.data.profilePhotoUrl || null);
+      } catch (err) {
+        console.error('Failed to fetch user:', err);
+      }
+    };
+    fetchUser();
+    window.addEventListener('activity_saved', fetchUser);
+    return () => window.removeEventListener('activity_saved', fetchUser);
   }, []);
 
-  const getChallenges = useCallback(() => challengeStore.getChallenges(), []);
-  const challenges = useSyncExternalStore(
-    subscribeToChallengeUpdates,
-    getChallenges,
-    getChallenges
-  );
+  const [activeDuels, setActiveDuels] = useState([]);
+  const [duoProgressMap, setDuoProgressMap] = useState({});
 
-  const getNormalTasks = useCallback(() => challengeStore.getNormalTasks(), []);
-  const normalTasks = useSyncExternalStore(
-    subscribeToChallengeUpdates,
-    getNormalTasks,
-    getNormalTasks
-  );
+  const fetchActiveDuels = useCallback(async () => {
+    try {
+      const res = await api.get('/duels/my');
+      const activeFromApi = res.data.filter(d => {
+        if (d.status !== 'ACTIVE') return false;
+        const startStr = dayjs(d.startDate).format('YYYY-MM-DD');
+        const endStr = dayjs(d.endDate).format('YYYY-MM-DD');
+        return todayStr >= startStr && todayStr <= endStr;
+      });
+      setActiveDuels(activeFromApi);
+      
+      const progressPromises = activeFromApi.map(d => api.get(`/duels/${d.id}/progress`));
+      const progressResponses = await Promise.all(progressPromises);
+      const newProgressMap = {};
+      progressResponses.forEach((pRes, idx) => {
+        const d = activeFromApi[idx];
+        newProgressMap[d.id] = pRes.data;
+      });
+      setDuoProgressMap(newProgressMap);
+    } catch (err) {
+      console.error('Failed to load active duels/progress from database:', err);
+    }
+  }, [todayStr]);
 
-  const activeDuels = challenges.filter(c => c.status === 'ACTIVE');
-  const soloToday = normalTasks[todayStr] || [];
+  const [soloToday, setSoloToday] = useState([]);
 
-  const duoToday = activeDuels.flatMap((active) =>
-    active.tasks.map((task, idx) => {
-      const taskName = task.name || task;
-      const taskTime = task.time || '';
+  const fetchSoloToday = useCallback(async () => {
+    try {
+      const res = await api.get('/solo-tasks', { params: { date: todayStr } });
+      setSoloToday(res.data);
+    } catch (err) {
+      console.error("Failed to load today's solo tasks:", err);
+    }
+  }, [todayStr]);
+
+  useEffect(() => {
+    fetchSoloToday();
+    fetchActiveDuels();
+    window.addEventListener('activity_saved', fetchSoloToday);
+    window.addEventListener('activity_saved', fetchActiveDuels);
+    return () => {
+      window.removeEventListener('activity_saved', fetchSoloToday);
+      window.removeEventListener('activity_saved', fetchActiveDuels);
+    };
+  }, [fetchSoloToday, fetchActiveDuels]);
+
+  const getLoggedInUser = () => {
+    try {
+      const data = localStorage.getItem('user_profile');
+      if (data) return JSON.parse(data);
+    } catch (e) {}
+    return null;
+  };
+  const loggedIn = getLoggedInUser();
+  const currentUsername = loggedIn && loggedIn.username ? loggedIn.username : 'Felix';
+
+  const duoToday = activeDuels.flatMap((active) => {
+    const progressData = duoProgressMap[active.id];
+    const opponentName = active.challengerName === currentUsername ? active.opponentName : active.challengerName;
+    return (active.tasks || []).map((task) => {
+      const taskName = task.taskName || task.name || task;
+      const taskTime = task.taskTime || task.time || '';
+      const completed = !!(progressData &&
+                           progressData.dailyProgress &&
+                           progressData.dailyProgress[todayStr] &&
+                           progressData.dailyProgress[todayStr][currentUsername] &&
+                           progressData.dailyProgress[todayStr][currentUsername][task.id]);
       return {
-        id: `duel_task_${active.id}_${idx}`,
+        id: task.id,
         title: taskName,
-        time: `Duel vs ${active.opponent} ⚔️` + (taskTime ? ` (${taskTime})` : ''),
-        completed: !!(active.progress[todayStr] &&
-                      active.progress[todayStr]['Felix'] &&
-                      active.progress[todayStr]['Felix'][taskName]),
+        time: `Duel vs ${opponentName} ⚔️` + (taskTime ? ` (${taskTime})` : ''),
+        completed: completed,
         isDuelTask: true,
         challengeId: active.id
       };
-    })
-  );
+    });
+  });
 
   const totalCount = soloToday.length + duoToday.length;
-  const dailyGoalPercent = totalCount === 0 ? 0 : Math.round((soloToday.filter(t => t.completed).length + duoToday.filter(t => t.completed).length) / totalCount * 100);
+  const dailyGoalPercent = totalCount === 0 ? 0 : Math.round((soloToday.filter(t => t.isCompleted).length + duoToday.filter(t => t.completed).length) / totalCount * 100);
 
-  const toggleTask = (task) => {
+  const toggleLocalDuoProgress = (duelId, taskId, completedState) => {
+    setDuoProgressMap(prev => {
+      const duelProgress = prev[duelId] ? { ...prev[duelId] } : {};
+      const dailyProgress = duelProgress.dailyProgress ? { ...duelProgress.dailyProgress } : {};
+      const dayProgress = dailyProgress[todayStr] ? { ...dailyProgress[todayStr] } : {};
+      const userProgress = dayProgress[currentUsername] ? { ...dayProgress[currentUsername] } : {};
+      
+      userProgress[taskId] = completedState;
+      dayProgress[currentUsername] = userProgress;
+      dailyProgress[todayStr] = dayProgress;
+      duelProgress.dailyProgress = dailyProgress;
+      
+      return {
+        ...prev,
+        [duelId]: duelProgress
+      };
+    });
+  };
+
+  const toggleTask = async (task) => {
     if (task.isDuelTask) {
-      challengeStore.toggleChallengeTask(task.challengeId, 'Felix', todayStr, task.title);
+      const currentlyCompleted = task.completed;
+      const newCompletedState = !currentlyCompleted;
+      
+      // Optimistic update
+      toggleLocalDuoProgress(task.challengeId, task.id, newCompletedState);
+      
+      try {
+        await api.patch(`/duels/tasks/${task.id}/complete`, null, { params: { date: todayStr } });
+        window.dispatchEvent(new Event('activity_saved'));
+      } catch (err) {
+        console.error('Failed to toggle duel task:', err);
+        // Revert back on failure
+        toggleLocalDuoProgress(task.challengeId, task.id, currentlyCompleted);
+      }
     } else {
-      challengeStore.toggleNormalTask(todayStr, task.id);
+      try {
+        const res = await api.patch(`/solo-tasks/${task.id}/complete`);
+        setSoloToday(prev => prev.map(t => t.id === task.id ? { ...t, isCompleted: res.data.isCompleted } : t));
+        window.dispatchEvent(new Event('activity_saved'));
+      } catch (err) {
+        console.error('Failed to toggle task:', err);
+      }
     }
   };
 
@@ -244,7 +344,7 @@ const Home = () => {
       }}>
         <Space size={16}>
           <div style={{ position: 'relative' }}>
-            <Avatar size={50} src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" style={{ border: '2px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} />
+            <Avatar size={50} src={userAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`} style={{ border: '2px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} />
             <div style={{ 
               position: 'absolute', 
               bottom: 0, 
@@ -257,7 +357,7 @@ const Home = () => {
             }} />
           </div>
           <div>
-            <Text style={{ fontSize: '14px', color: 'var(--text-gray)', fontWeight: 500 }}>GM, Felix! 👋</Text>
+            <Text style={{ fontSize: '14px', color: 'var(--text-gray)', fontWeight: 500 }}>GM, {userName}! 👋</Text>
             <Title level={3} style={{ margin: 0, letterSpacing: '-0.5px' }}>Your Hub</Title>
           </div>
         </Space>
@@ -282,7 +382,7 @@ const Home = () => {
           </div>
           <Flame size={20} color="white" style={{ marginBottom: '8px' }} />
           <div style={{ fontSize: '13px', opacity: 0.9, fontWeight: 500 }}>CURR. STREAK</div>
-          <div style={{ fontSize: '24px', fontWeight: 800 }}>12 Days</div>
+          <div style={{ fontSize: '24px', fontWeight: 800 }}>{streakDays} Days</div>
         </div>
         <div className="modern-card" style={{ 
           background: 'linear-gradient(135deg, #007bff 0%, #00c6ff 100%)', 
@@ -312,12 +412,42 @@ const Home = () => {
           <Text strong onClick={() => navigate('/challenges')} style={{ color: 'var(--primary-orange)', fontSize: '14px', cursor: 'pointer' }}>View All</Text>
         </div>
         {activeDuels.length === 0 ? (
-          <div style={{ background: 'white', borderRadius: 24, padding: '32px 16px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.04)' }}>
-            <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(255,140,0,0.1), rgba(0,123,255,0.1))', display: 'flex', alignItems: 'center', justifycontent: 'center', margin: '0 auto 12px' }}>
+          <div
+            onClick={() => navigate('/challenges')}
+            style={{
+              background: 'white',
+              borderRadius: 24,
+              padding: '32px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+              border: '1px solid rgba(0,0,0,0.04)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out'
+            }}
+            className="empty-deal-card"
+          >
+            <div style={{
+              width: 54,
+              height: 54,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(255,140,0,0.15), rgba(0,123,255,0.15))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px'
+            }}>
               <Swords size={24} color="var(--primary-orange)" />
             </div>
-            <Text style={{ color: 'var(--text-gray)', fontSize: 14 }}>No active duels for today</Text>
-            <Text type="secondary" style={{ fontSize: '11px' }}>Tap here to challenge a friend! ⚔️</Text>
+            <Text style={{ color: 'var(--text-gray)', fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 2 }}>
+              No active duels for today
+            </Text>
+            <Text style={{ color: 'var(--primary-orange)', fontSize: 11, fontWeight: 600, display: 'block' }}>
+              Tap here to challenge a friend! ⚔️
+            </Text>
           </div>
         ) : (
           <div className="ongoing-deals-track" style={{
@@ -329,15 +459,18 @@ const Home = () => {
             WebkitOverflowScrolling: 'touch'
           }}>
             {activeDuels.map((duel) => {
-              const rates = getDuelCompletions(duel);
-              const challengerName = duel.challenger === 'Jack23' ? 'Jack23' : 'Felix';
+              const rates = duoProgressMap[duel.id] || {};
+              const challengerName = duel.challengerName;
+              const opponentName = duel.opponentName;
+              const challengerRate = rates.challengerCompletionRate ?? duel.challengerCompletionRate ?? 0;
+              const opponentRate = rates.opponentCompletionRate ?? duel.opponentCompletionRate ?? 0;
               return (
                 <VSBattleCard
                   key={duel.id}
                   challenger={challengerName}
-                  opponent={duel.opponent}
-                  challengerRate={rates.challengerRate}
-                  opponentRate={rates.opponentRate}
+                  opponent={opponentName}
+                  challengerRate={challengerRate}
+                  opponentRate={opponentRate}
                 />
               );
             })}
@@ -379,9 +512,9 @@ const Home = () => {
                 {soloToday.map(task => (
                   <HomeTaskRow 
                     key={task.id}
-                    title={task.title}
-                    time={task.time}
-                    completed={task.completed}
+                    title={task.taskName}
+                    time={task.taskTime}
+                    completed={task.isCompleted}
                   />
                 ))}
               </div>
@@ -410,15 +543,18 @@ const Home = () => {
                 }}>
                   <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-dark)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Swords size={16} color="var(--primary-orange)" />
-                    <span>Duel vs {duel.opponent}</span>
+                    <span>Duel vs {duel.opponentName === currentUsername ? duel.challengerName : duel.opponentName}</span>
                   </div>
                   <div>
-                    {duel.tasks.map((task, idx) => {
-                      const taskName = task.name || task;
-                      const taskTime = task.time || '';
-                      const isCompleted = !!(duel.progress[todayStr] &&
-                                             duel.progress[todayStr]['Felix'] &&
-                                             duel.progress[todayStr]['Felix'][taskName]);
+                    {(duel.tasks || []).map((task, idx) => {
+                      const taskName = task.taskName || task.name || task;
+                      const taskTime = task.taskTime || task.time || '';
+                      const progressData = duoProgressMap[duel.id];
+                      const isCompleted = !!(progressData &&
+                                             progressData.dailyProgress &&
+                                             progressData.dailyProgress[todayStr] &&
+                                             progressData.dailyProgress[todayStr][currentUsername] &&
+                                             progressData.dailyProgress[todayStr][currentUsername][task.id]);
                       return (
                         <HomeTaskRow
                           key={`${duel.id}_${idx}`}
@@ -454,6 +590,17 @@ const Home = () => {
         }
         .ongoing-deals-track::-webkit-scrollbar {
           display: none;
+        }
+        .empty-deal-card {
+          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        .empty-deal-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+        }
+        .empty-deal-card:active {
+          transform: translateY(0);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
         }
       `}} />
     </motion.div>

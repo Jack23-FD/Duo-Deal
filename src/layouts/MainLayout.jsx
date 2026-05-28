@@ -1,32 +1,40 @@
-import { useState, useEffect, useSyncExternalStore } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import BottomNavbar from '../components/BottomNavbar';
 import { Bell, Search, Mail } from 'lucide-react';
 import { Badge } from 'antd';
 import EmailSimulatorDrawer from '../components/EmailSimulatorDrawer';
-import { challengeStore } from '../utils/challengeStore';
+import api from '../utils/api';
 
 const MainLayout = () => {
   const [emailOpen, setEmailOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const subscribeToChallengeUpdates = (callback) => {
-    window.addEventListener('challenge_store_update', callback);
-    return () => window.removeEventListener('challenge_store_update', callback);
-  };
-
-  const pendingCount = useSyncExternalStore(
-    subscribeToChallengeUpdates,
-    () => challengeStore.getChallenges().filter(ch => ch.status === 'PENDING').length,
-    () => challengeStore.getChallenges().filter(ch => ch.status === 'PENDING').length
-  );
-
+  // Inline fetch with mount guard
   useEffect(() => {
-    // Listen for custom trigger to open email simulator
+    let isMounted = true;
+    const fetch = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        if (isMounted) setPendingCount(0);
+        return;
+      }
+      try {
+        const res = await api.get('/duels/pending');
+        if (isMounted) setPendingCount(res.data?.count ?? 0);
+      } catch (err) {
+        console.error('Failed to fetch pending count:', err);
+        if (isMounted) setPendingCount(0);
+      }
+    };
+    fetch();
+    // Event listeners
+    window.addEventListener('activity_saved', fetch);
     const handleOpenEmail = () => setEmailOpen(true);
-
     window.addEventListener('open_email_simulator', handleOpenEmail);
 
     return () => {
+      window.removeEventListener('activity_saved', fetch);
       window.removeEventListener('open_email_simulator', handleOpenEmail);
     };
   }, []);

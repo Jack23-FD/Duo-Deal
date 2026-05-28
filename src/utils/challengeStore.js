@@ -2,6 +2,8 @@ import dayjs from 'dayjs';
 
 let challengesCache = [];
 let normalTasksCache = {};
+let challengesInitialized = false;
+let normalTasksInitialized = false;
 const STORAGE_CHALLENGES_KEY = 'duo_deals_challenges';
 const STORAGE_NORMAL_TASKS_KEY = 'duo_deals_normal_tasks';
 
@@ -15,89 +17,35 @@ const getTodayStr = () => dayjs().format('YYYY-MM-DD');
 
 // Seed normal tasks
 const getInitialNormalTasks = () => {
-  const today = getTodayStr();
-  return {
-    [today]: [
-      { id: 1, title: '30 min Morning Yoga', time: '07:00 AM', completed: false },
-      { id: 2, title: 'Read 10 pages — Atomic Habits', time: '09:00 PM', completed: false },
-      { id: 3, title: 'Drink 3 L Water', time: 'All Day', completed: true },
-      { id: 4, title: 'Evening Run (5 km)', time: '06:30 PM', completed: false },
-    ],
-  };
+  return {};
+};
+
+const getLoggedInUser = () => {
+  try {
+    const data = localStorage.getItem('user_profile');
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (e) {}
+  return null;
 };
 
 export const challengeStore = {
   getChallenges: () => {
-    if (challengesCache.length === 0) {
+    if (!challengesInitialized) {
       try {
         const data = localStorage.getItem(STORAGE_CHALLENGES_KEY);
         if (data) {
           challengesCache = JSON.parse(data);
         } else {
-          const today = getTodayStr();
-          const start = dayjs().subtract(2, 'day').format('YYYY-MM-DD');
-          const end = dayjs().add(5, 'day').format('YYYY-MM-DD');
-          const endChris = dayjs().add(3, 'day').format('YYYY-MM-DD');
-          
-          challengesCache = [
-            {
-              id: 'duel_priya43',
-              challenger: 'Jack23',
-              opponent: 'Priya43',
-              startDate: start,
-              endDate: end,
-              tasks: [
-                { name: 'Morning Jog 3km', time: '07:00 AM' },
-                { name: 'Read 10 Pages', time: '09:00 PM' },
-                { name: 'Drink 3L Water', time: 'All Day' }
-              ],
-              status: 'ACTIVE',
-              createdAt: dayjs().toISOString(),
-              progress: {
-                [today]: {
-                  'Jack23': { 'Morning Jog 3km': true, 'Read 10 Pages': false, 'Drink 3L Water': true },
-                  'Priya43': { 'Morning Jog 3km': true, 'Read 10 Pages': true, 'Drink 3L Water': false }
-                },
-                [dayjs().subtract(1, 'day').format('YYYY-MM-DD')]: {
-                  'Jack23': { 'Morning Jog 3km': true, 'Read 10 Pages': true, 'Drink 3L Water': true },
-                  'Priya43': { 'Morning Jog 3km': false, 'Read 10 Pages': true, 'Drink 3L Water': false }
-                }
-              }
-            },
-            {
-              id: 'duel_alex',
-              challenger: 'Felix',
-              opponent: 'Alex',
-              startDate: start,
-              endDate: end,
-              tasks: [
-                { name: 'Morning Jog 3km', time: '07:00 AM' },
-                { name: 'Read 10 Pages', time: '09:00 PM' }
-              ],
-              status: 'ACTIVE',
-              createdAt: dayjs().toISOString(),
-              progress: {}
-            },
-            {
-              id: 'duel_chris',
-              challenger: 'Felix',
-              opponent: 'Chris',
-              startDate: start,
-              endDate: endChris,
-              tasks: [
-                { name: 'Water Habit 2L', time: 'Anytime' }
-              ],
-              status: 'ACTIVE',
-              createdAt: dayjs().toISOString(),
-              progress: {}
-            }
-          ];
+          challengesCache = [];
           localStorage.setItem(STORAGE_CHALLENGES_KEY, JSON.stringify(challengesCache));
         }
       } catch (e) {
         console.error('Error parsing challenges', e);
         challengesCache = [];
       }
+      challengesInitialized = true;
     }
     return challengesCache;
   },
@@ -105,21 +53,28 @@ export const challengeStore = {
   saveChallenges: (challenges) => {
     challengesCache = challenges;
     localStorage.setItem(STORAGE_CHALLENGES_KEY, JSON.stringify(challenges));
+    challengesInitialized = true;
     broadcastUpdate();
   },
 
-  createChallenge: ({ opponent, startDate, endDate, tasks }) => {
+  createChallenge: ({ opponent, startDate, endDate, tasks, backendId }) => {
     const challenges = challengeStore.getChallenges();
     const cleanTasks = tasks
       .filter(t => t && t.name && t.name.trim())
-      .map(t => ({
+      .map((t, idx) => ({
+        id: `stored_task_${Date.now()}_${idx}`,
         name: t.name.trim(),
         time: t.time ? t.time.trim() : 'Anytime'
       }));
     
+    const user = getLoggedInUser();
+    const challengerName = user && user.username ? user.username : 'Felix';
+    const challengerPhoto = user && user.profilePhotoUrl ? user.profilePhotoUrl : null;
+    
     const newChallenge = {
       id: `duel_${Date.now()}`,
-      challenger: 'Felix',
+      challenger: challengerName,
+      challengerPhoto: challengerPhoto,
       opponent,
       startDate: dayjs(startDate).format('YYYY-MM-DD'),
       endDate: dayjs(endDate).format('YYYY-MM-DD'),
@@ -177,7 +132,7 @@ export const challengeStore = {
     return activeDuels.length > 0 ? activeDuels[0] : null;
   },
 
-  toggleChallengeTask: (challengeId, username, dateStr, taskTitle) => {
+  toggleChallengeTask: (challengeId, username, dateStr, taskId) => {
     const challenges = challengeStore.getChallenges();
     const updated = challenges.map(ch => {
       if (ch.id === challengeId) {
@@ -186,8 +141,8 @@ export const challengeStore = {
         if (!newProgress[dateStr][username]) newProgress[dateStr][username] = {};
         
         // Toggle task for the specified user
-        const currentVal = !!newProgress[dateStr][username][taskTitle];
-        newProgress[dateStr][username][taskTitle] = !currentVal;
+        const currentVal = !!newProgress[dateStr][username][taskId];
+        newProgress[dateStr][username][taskId] = !currentVal;
 
         return { ...ch, progress: newProgress };
       }
@@ -198,7 +153,7 @@ export const challengeStore = {
 
   // --- Normal Daily Tasks Management ---
   getNormalTasks: () => {
-    if (Object.keys(normalTasksCache).length === 0) {
+    if (!normalTasksInitialized) {
       try {
         const data = localStorage.getItem(STORAGE_NORMAL_TASKS_KEY);
         if (!data) {
@@ -212,6 +167,7 @@ export const challengeStore = {
         console.error('Error parsing normal tasks', e);
         normalTasksCache = {};
       }
+      normalTasksInitialized = true;
     }
     return normalTasksCache;
   },
@@ -219,6 +175,7 @@ export const challengeStore = {
   saveNormalTasks: (tasks) => {
     normalTasksCache = tasks;
     localStorage.setItem(STORAGE_NORMAL_TASKS_KEY, JSON.stringify(tasks));
+    normalTasksInitialized = true;
     broadcastUpdate();
   },
 

@@ -1,8 +1,8 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useEffect } from 'react';
 import { Drawer, Avatar, Button, Typography, Space, Tag, message } from 'antd';
 import { Mail, MailOpen, Calendar, Swords, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { challengeStore } from '../utils/challengeStore';
+import api from '../utils/api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -10,40 +10,83 @@ const { Title, Text } = Typography;
 const EmailSimulatorDrawer = ({ open, onClose }) => {
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [clashing, setClashing] = useState(false);
+  const [pendingChallenges, setPendingChallenges] = useState([]);
 
-  const subscribeToChallenges = (callback) => {
-    window.addEventListener('challenge_store_update', callback);
-    return () => window.removeEventListener('challenge_store_update', callback);
+  const fetchPending = async () => {
+    try {
+      const res = await api.get('/duels/pending');
+      const duelsArray = Array.isArray(res.data) ? res.data : (res.data?.duels || []);
+      const mapped = duelsArray.map(d => ({
+        id: d.id,
+        challenger: d.challengerName || d.challengerUsername,
+        opponent: d.opponentName || d.opponentUsername,
+        startDate: d.startDate,
+        endDate: d.endDate,
+        status: d.status,
+        tasks: d.tasks || [],
+        createdAt: d.createdAt || new Date().toISOString()
+      }));
+      setPendingChallenges(mapped);
+    } catch (err) {
+      console.error('Failed to fetch pending challenges:', err);
+    }
   };
 
-  const challenges = useSyncExternalStore(
-    subscribeToChallenges,
-    () => challengeStore.getChallenges(),
-    () => challengeStore.getChallenges()
-  );
+  useEffect(() => {
+    if (open) {
+      fetchPending();
+    }
+  }, [open]);
 
-  const handleAccept = (ch) => {
+  useEffect(() => {
+    window.addEventListener('activity_saved', fetchPending);
+    return () => window.removeEventListener('activity_saved', fetchPending);
+  }, []);
+
+  const handleAccept = async (ch) => {
     setClashing(true);
+    try {
+      await api.post(`/duels/${ch.id}/accept`);
+    } catch (err) {
+      console.error('Failed to accept challenge:', err);
+      setClashing(false);
+      message.error({
+        content: 'Failed to accept challenge ⚔️',
+        style: { marginTop: '10vh' }
+      });
+      return;
+    }
     
     // Clash animation duration
     setTimeout(() => {
-      challengeStore.acceptChallenge(ch.id);
       setClashing(false);
       message.success({
         content: `Challenge Accepted! Duel with ${ch.challenger} is now ACTIVE! ⚔️`,
         style: { marginTop: '10vh' }
       });
       setSelectedChallenge(null);
+      onClose(); // Automatically close drawer to reveal the refreshed dashboard!
+      window.dispatchEvent(new Event('activity_saved'));
     }, 1500);
   };
 
-  const handleReject = (ch) => {
-    challengeStore.rejectChallenge(ch.id);
-    message.error({
-      content: 'Challenge rejected 🚫',
-      style: { marginTop: '10vh' }
-    });
-    setSelectedChallenge(null);
+  const handleReject = async (ch) => {
+    try {
+      await api.post(`/duels/${ch.id}/reject`);
+      message.error({
+        content: 'Challenge rejected 🚫',
+        style: { marginTop: '10vh' }
+      });
+      setSelectedChallenge(null);
+      onClose(); // Automatically close drawer to reveal the refreshed dashboard!
+      window.dispatchEvent(new Event('activity_saved'));
+    } catch (err) {
+      console.error('Failed to reject challenge:', err);
+      message.error({
+        content: 'Failed to reject challenge 🚫',
+        style: { marginTop: '10vh' }
+      });
+    }
   };
 
   const formatDate = (dateStr) => dayjs(dateStr).format('MMM DD, YYYY');
@@ -53,8 +96,16 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
     const e = dayjs(end);
     return e.diff(s, 'day') + 1;
   };
+  const getLoggedInUser = () => {
+    try {
+      const data = localStorage.getItem('user_profile');
+      if (data) return JSON.parse(data);
+    } catch (e) {}
+    return null;
+  };
 
-  const pendingChallenges = challenges.filter(c => c.status === 'PENDING');
+  const loggedInUser = getLoggedInUser();
+  const currentUsername = loggedInUser && loggedInUser.username ? loggedInUser.username.toLowerCase() : '';
 
   return (
     <Drawer
@@ -65,10 +116,10 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
         </div>
       }
       placement="right"
-      width={440}
+      style={{ width: 440 }}
       onClose={onClose}
       open={open}
-      bodyStyle={{ padding: '0px', background: '#f5f7fa', position: 'relative', overflow: 'hidden' }}
+      styles={{ body: { padding: '0px', background: '#f5f7fa', position: 'relative', overflow: 'hidden' } }}
     >
       {/* Confetti / Clashing Overlay Animation */}
       <AnimatePresence>
@@ -173,7 +224,7 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <Space>
-                        <Avatar size={24} src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${ch.challenger}`} />
+                        <Avatar size={24} src={ch.challengerPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${ch.challenger}`} />
                         <Text strong style={{ fontSize: '14px' }}>{ch.challenger} via Duo Deals</Text>
                       </Space>
                       <Tag color="orange" style={{ margin: 0, borderRadius: '4px' }}>Invitation</Tag>
@@ -182,7 +233,7 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
                       ⚔️ Habit Duel Challenge from {ch.challenger}!
                     </Title>
                     <Text type="secondary" style={{ fontSize: '12px', display: 'block', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      You have been challenged to a habit battle for {getDaysCount(ch.startDate, ch.endDate)} days! Daily tasks: {ch.tasks.map(t => t.name || t).join(', ')}
+                      You have been challenged to a habit battle for {getDaysCount(ch.startDate, ch.endDate)} days! Daily tasks: {(ch.tasks || []).map(t => t.taskName || t.name || t).join(', ')}
                     </Text>
                     <div style={{ textAlign: 'right', marginTop: '8px' }}>
                       <Text style={{ fontSize: '10px', color: 'var(--text-gray)' }}>{dayjs(ch.createdAt).format('hh:mm A')}</Text>
@@ -216,7 +267,7 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
 
               {/* Envelope details */}
               <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-                <Avatar size={40} src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChallenge.challenger}`} />
+                <Avatar size={40} src={selectedChallenge.challengerPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChallenge.challenger}`} />
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Text strong>{selectedChallenge.challenger}</Text>
@@ -236,7 +287,7 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
                 <p style={{ margin: '0 0 14px', fontSize: '15px' }}>Hi <b>{selectedChallenge.opponent}</b>,</p>
                 
                 <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#434343' }}>
-                  <b>{selectedChallenge.challenger}</b> has invited you to a habit battle! 
+                  <b>{selectedChallenge.challenger}</b> challenged you to a habit battle.
                   Habit battles are designed to keep you both accountable. Both users follow the **exact same daily tasks** until the end date.
                 </p>
 
@@ -269,14 +320,18 @@ const EmailSimulatorDrawer = ({ open, onClose }) => {
                   <Text strong style={{ fontSize: '14px', display: 'block', marginBottom: '12px', color: 'var(--text-dark)' }}>
                     📝 Compulsory Daily Tasks:
                   </Text>
-                  {selectedChallenge.tasks.map((task, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '8px 12px', background: 'white', border: '1px solid #f0f0f0', borderRadius: '8px', marginBottom: '6px' }}>
-                      <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--gradient-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 800 }}>
-                        {idx + 1}
+                  {(selectedChallenge.tasks || []).map((task, idx) => {
+                    const taskName = task.taskName || task.name || task;
+                    const taskTime = task.taskTime || task.time || '';
+                    return (
+                      <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '8px 12px', background: 'white', border: '1px solid #f0f0f0', borderRadius: '8px', marginBottom: '6px' }}>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--gradient-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 800 }}>
+                          {idx + 1}
+                        </div>
+                        <Text strong style={{ fontSize: '13px', color: '#434343' }}>{taskName}{taskTime ? ` (${taskTime})` : ''}</Text>
                       </div>
-                      <Text strong style={{ fontSize: '13px', color: '#434343' }}>{task.name || task}{task.time ? ` (${task.time})` : ''}</Text>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div style={{ borderLeft: '3px solid #ff4d4f', paddingLeft: '12px', margin: '20px 0 10px' }}>

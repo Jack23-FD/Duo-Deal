@@ -1,4 +1,4 @@
-import { useState, useCallback, useSyncExternalStore } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { DatePicker, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -8,7 +8,7 @@ import {
   Flame, Save, ChevronLeft, ChevronRight, Target,
   X, Swords
 } from 'lucide-react';
-import { challengeStore } from '../utils/challengeStore';
+import api from '../utils/api';
 
 /* ─────────────────────────────────────────────
    Progress Ring SVG
@@ -116,48 +116,84 @@ const Activity = () => {
 
   const dateKey = selectedDate.format('YYYY-MM-DD');
 
-  const subscribeToChallengeUpdates = (callback) => {
-    window.addEventListener('challenge_store_update', callback);
-    return () => window.removeEventListener('challenge_store_update', callback);
+  const getLoggedInUser = () => {
+    try {
+      const data = localStorage.getItem('user_profile');
+      if (data) return JSON.parse(data);
+    } catch (e) {}
+    return null;
   };
+  const loggedIn = getLoggedInUser();
+  const currentUsername = loggedIn && loggedIn.username ? loggedIn.username : 'Felix';
 
-  const normalTasksSnapshot = useSyncExternalStore(
-    subscribeToChallengeUpdates,
-    () => challengeStore.getNormalTasks(),
-    () => challengeStore.getNormalTasks()
-  );
+  const [soloTasks, setSoloTasks] = useState([]);
+  const [activeDuels, setActiveDuels] = useState([]);
+  const [duoProgressMap, setDuoProgressMap] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  const challenges = useSyncExternalStore(
-    subscribeToChallengeUpdates,
-    () => challengeStore.getChallenges(),
-    () => challengeStore.getChallenges()
-  );
+  const fetchSoloTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/solo-tasks`, { params: { date: dateKey } });
+      setSoloTasks(res.data);
+    } catch (err) {
+      console.error('Failed to load solo tasks:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateKey]);
 
-  // Filter active duels for the selected date inside the component body to prevent infinite re-renders
-  const activeDuels = challenges.filter(ch => {
-    if (ch.status !== 'ACTIVE') return false;
-    const start = dayjs(ch.startDate);
-    const end = dayjs(ch.endDate);
-    return (selectedDate.isAfter(start, 'day') || selectedDate.isSame(start, 'day')) &&
-           (selectedDate.isBefore(end, 'day') || selectedDate.isSame(end, 'day'));
-  });
+  const fetchActiveDuelsAndProgress = useCallback(async () => {
+    try {
+      const res = await api.get('/duels/my');
+      const activeForDate = res.data.filter(ch => {
+        if (ch.status !== 'ACTIVE') return false;
+        const startStr = dayjs(ch.startDate).format('YYYY-MM-DD');
+        const endStr = dayjs(ch.endDate).format('YYYY-MM-DD');
+        const targetStr = selectedDate.format('YYYY-MM-DD');
+        return targetStr >= startStr && targetStr <= endStr;
+      });
+      setActiveDuels(activeForDate);
 
-  const soloTasks = normalTasksSnapshot[dateKey] || [];
+      const progressPromises = activeForDate.map(d => api.get(`/duels/${d.id}/progress`));
+      const progressResponses = await Promise.all(progressPromises);
+      const newProgressMap = {};
+      progressResponses.forEach((pRes, idx) => {
+        const d = activeForDate[idx];
+        newProgressMap[d.id] = pRes.data;
+      });
+      setDuoProgressMap(newProgressMap);
+    } catch (err) {
+      console.error('Failed to load active duels and progress:', err);
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    fetchSoloTasks();
+    fetchActiveDuelsAndProgress();
+  }, [fetchSoloTasks, fetchActiveDuelsAndProgress]);
+
+  useEffect(() => {
+    window.addEventListener('activity_saved', fetchActiveDuelsAndProgress);
+    return () => window.removeEventListener('activity_saved', fetchActiveDuelsAndProgress);
+  }, [fetchActiveDuelsAndProgress]);
 
   // Combined Progress Calculation: Solo Deal tasks + Felix's Duo Deal tasks
   const soloTotal = soloTasks.length;
-  const soloDone = soloTasks.filter(t => t.completed).length;
+  const soloDone = soloTasks.filter(t => t.isCompleted).length;
 
   let duoTotal = 0;
   let duoDone = 0;
 
   activeDuels.forEach(duel => {
-    duel.tasks.forEach(task => {
+    const progressData = duoProgressMap[duel.id];
+    (duel.tasks || []).forEach((task) => {
       duoTotal++;
-      const taskName = task.name || task;
-      const isCompleted = !!(duel.progress[dateKey] &&
-                             duel.progress[dateKey]['Felix'] &&
-                             duel.progress[dateKey]['Felix'][taskName]);
+      const isCompleted = !!(progressData &&
+                             progressData.dailyProgress &&
+                             progressData.dailyProgress[dateKey] &&
+                             progressData.dailyProgress[dateKey][currentUsername] &&
+                             progressData.dailyProgress[dateKey][currentUsername][task.id]);
       if (isCompleted) duoDone++;
     });
   });
@@ -173,27 +209,67 @@ const Activity = () => {
   const isToday = selectedDate.isSame(dayjs(), 'day');
 
   /* toggle solo task */
-  const toggleSoloTask = useCallback((taskId) => {
-    challengeStore.toggleNormalTask(dateKey, taskId);
-    setSaved(prev => ({ ...prev, [dateKey]: false }));
+  const toggleSoloTask = useCallback(async (taskId) => {
+    try {
+      const res = await api.patch(`/solo-tasks/${taskId}/complete`);
+      setSoloTasks(prev => prev.map(t => t.id === taskId ? { ...t, isCompleted: res.data.isCompleted } : t));
+      setSaved(prev => ({ ...prev, [dateKey]: false }));
+      window.dispatchEvent(new Event('activity_saved'));
+    } catch (err) {
+      console.error('Failed to toggle solo task:', err);
+    }
   }, [dateKey]);
 
   /* delete solo task */
-  const deleteSoloTask = useCallback((taskId) => {
-    challengeStore.deleteNormalTask(dateKey, taskId);
-    setSaved(prev => ({ ...prev, [dateKey]: false }));
+  const deleteSoloTask = useCallback(async (taskId) => {
+    try {
+      await api.delete(`/solo-tasks/${taskId}`);
+      setSoloTasks(prev => prev.filter(t => t.id !== taskId));
+      setSaved(prev => ({ ...prev, [dateKey]: false }));
+      window.dispatchEvent(new Event('activity_saved'));
+    } catch (err) {
+      console.error('Failed to delete solo task:', err);
+    }
   }, [dateKey]);
 
   /* add solo task */
-  const addSoloTask = () => {
+  const addSoloTask = async () => {
     if (!newTitle.trim()) return;
-    // Time field is explicitly optional
     const formattedTime = newTime.trim() || 'Anytime';
-    challengeStore.addNormalTask(dateKey, newTitle, formattedTime);
-    setNewTitle('');
-    setNewTime('');
-    setAdding(false);
-    setSaved(prev => ({ ...prev, [dateKey]: false }));
+    try {
+      const res = await api.post('/solo-tasks', {
+        taskName: newTitle.trim(),
+        taskTime: formattedTime,
+        taskDate: dateKey
+      });
+      setSoloTasks(prev => [...prev, res.data]);
+      setNewTitle('');
+      setNewTime('');
+      setAdding(false);
+      setSaved(prev => ({ ...prev, [dateKey]: false }));
+      window.dispatchEvent(new Event('activity_saved'));
+    } catch (err) {
+      console.error('Failed to add solo task:', err);
+    }
+  };
+
+  const toggleLocalDuoProgress = (duelId, taskId, completedState) => {
+    setDuoProgressMap(prev => {
+      const duelProgress = prev[duelId] ? { ...prev[duelId] } : {};
+      const dailyProgress = duelProgress.dailyProgress ? { ...duelProgress.dailyProgress } : {};
+      const dayProgress = dailyProgress[dateKey] ? { ...dailyProgress[dateKey] } : {};
+      const userProgress = dayProgress[currentUsername] ? { ...dayProgress[currentUsername] } : {};
+      
+      userProgress[taskId] = completedState;
+      dayProgress[currentUsername] = userProgress;
+      dailyProgress[dateKey] = dayProgress;
+      duelProgress.dailyProgress = dailyProgress;
+      
+      return {
+        ...prev,
+        [duelId]: duelProgress
+      };
+    });
   };
 
   /* save completions and redirect */
@@ -416,8 +492,8 @@ const Activity = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
-                  background: task.completed ? '#e5ffe5' : '#ffffff',
-                  border: task.completed ? '1px solid #52c41a' : '1px solid rgba(0,0,0,0.06)',
+                  background: task.isCompleted ? '#e5ffe5' : '#ffffff',
+                  border: task.isCompleted ? '1px solid #52c41a' : '1px solid rgba(0,0,0,0.06)',
                   borderRadius: 16,
                   padding: '14px 16px',
                   marginBottom: 10,
@@ -434,13 +510,13 @@ const Activity = () => {
                     margin: 0, fontSize: 15, fontWeight: 600,
                     color: 'var(--text-dark)',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                  }}>{task.title}</p>
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{task.time}</p>
+                  }}>{task.taskName}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{task.taskTime}</p>
                 </div>
 
                 {/* Status Badge */}
                 <div style={{ flexShrink: 0 }}>
-                  <StatusBadge completed={task.completed} />
+                  <StatusBadge completed={task.isCompleted} />
                 </div>
 
                 {/* Delete */}
@@ -497,13 +573,17 @@ const Activity = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {activeDuels.map((duel) => {
-              // Calculate today's completion stats for Felix
-              const felixDoneToday = duel.tasks.filter(t => {
-                const taskName = t.name || t;
-                return !!(duel.progress[dateKey] &&
-                          duel.progress[dateKey]['Felix'] &&
-                          duel.progress[dateKey]['Felix'][taskName]);
+              const progressData = duoProgressMap[duel.id];
+              // Calculate today's completion stats for current user
+              const userDoneToday = (duel.tasks || []).filter(t => {
+                return !!(progressData &&
+                          progressData.dailyProgress &&
+                          progressData.dailyProgress[dateKey] &&
+                          progressData.dailyProgress[dateKey][currentUsername] &&
+                          progressData.dailyProgress[dateKey][currentUsername][t.id]);
               }).length;
+
+              const opponentDisplay = duel.challengerName === currentUsername ? duel.opponentName : duel.challengerName;
 
               return (
                 <div key={duel.id} style={{
@@ -519,7 +599,7 @@ const Activity = () => {
                       <Swords size={18} color="var(--primary-orange)" />
                       <span>vs </span>
                       <span style={{ background: 'var(--gradient-orange)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        {duel.opponent}
+                        {opponentDisplay}
                       </span>
                     </span>
                     <span style={{
@@ -537,21 +617,37 @@ const Activity = () => {
 
                   {/* Tasks List (Felix/Logged-in User only) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {duel.tasks.map((task, idx) => {
-                      const taskName = task.name || task;
-                      const taskTime = task.time || '';
-                      const isCompleted = !!(duel.progress[dateKey] &&
-                                             duel.progress[dateKey]['Felix'] &&
-                                             duel.progress[dateKey]['Felix'][taskName]);
+                    {(duel.tasks || []).map((task, idx) => {
+                      const taskName = task.taskName || task.name || task;
+                      const taskTime = task.taskTime || task.time || '';
+                      const isCompleted = !!(progressData &&
+                                             progressData.dailyProgress &&
+                                             progressData.dailyProgress[dateKey] &&
+                                             progressData.dailyProgress[dateKey][currentUsername] &&
+                                             progressData.dailyProgress[dateKey][currentUsername][task.id]);
                       return (
                         <DuoTaskRow
-                          key={`felix_${idx}`}
+                          key={`user_${idx}`}
                           title={taskName + (taskTime ? ` (${taskTime})` : '')}
                           completed={isCompleted}
-                          onToggle={() => {
-                            challengeStore.toggleChallengeTask(duel.id, 'Felix', dateKey, taskName);
-                            setSaved(prev => ({ ...prev, [dateKey]: false }));
-                          }}
+                          onToggle={async () => {
+                             const currentlyCompleted = isCompleted;
+                             const newCompletedState = !currentlyCompleted;
+                             
+                             // Optimistic update
+                             toggleLocalDuoProgress(duel.id, task.id, newCompletedState);
+                             
+                             try {
+                               await api.patch(`/duels/tasks/${task.id}/complete`, null, { params: { date: dateKey } });
+                               setSaved(prev => ({ ...prev, [dateKey]: false }));
+                               window.dispatchEvent(new Event('activity_saved'));
+                             } catch (err) {
+                               console.error('Failed to toggle duel task:', err);
+                               message.error('Failed to toggle task ⚔️');
+                               // Revert back on failure
+                               toggleLocalDuoProgress(duel.id, task.id, currentlyCompleted);
+                             }
+                           }}
                         />
                       );
                     })}
@@ -567,7 +663,7 @@ const Activity = () => {
                     alignItems: 'center'
                   }}>
                     <span style={{ fontSize: 12, color: 'var(--text-gray)', fontWeight: 600 }}>
-                      Felix Progress: <strong style={{ color: 'var(--primary-orange)' }}>{felixDoneToday}/{duel.tasks.length}</strong> Completed
+                      Your Progress: <strong style={{ color: 'var(--primary-orange)' }}>{userDoneToday}/{duel.tasks.length}</strong> Completed
                     </span>
                   </div>
                 </div>
