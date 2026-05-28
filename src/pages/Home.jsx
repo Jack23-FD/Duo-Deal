@@ -31,7 +31,8 @@ const HomeTaskRow = ({ title, time, completed }) => (
         margin: 0, fontSize: 15, fontWeight: 700,
         color: completed ? '#1e7e34' : 'var(--text-dark)',
         textDecoration: 'none',
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        lineHeight: '1.4', padding: '2px 0'
       }}>{title}</p>
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-gray)', marginTop: 2 }}>{time}</p>
     </div>
