@@ -1,0 +1,17 @@
+# ---------- Build stage ----------
+FROM node:21-alpine AS builder
+WORKDIR /app
+
+# Install dependencies (package.json + package-lock.json)
+COPY package*.json ./
+RUN npm ci
+
+# Copy source code and build the static assets
+COPY . ./
+RUN npm run build
+
+# ---------- Runtime stage ----------
+FROM nginx:stable-alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
+# Nginx runs in foreground by default
